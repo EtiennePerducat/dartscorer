@@ -695,29 +695,39 @@ function profileStats(pid) {
 /* =====================================================================
    Voix, écran allumé, toast, modales
    ===================================================================== */
+/* Voix : les voix "Natural / Online" (Edge, Android) passent par internet.
+   Hors ligne, ou si elles échouent, on bascule sur une voix installée sur l'appareil. */
 const voice = {
-  v: null,
-  pick() {
+  pick(localOnly) {
     try {
-      const fr = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
-      const score = v => (/fr[-_]FR/i.test(v.lang) ? 2 : 0) + (/natural|online|neural/i.test(v.name) ? 1 : 0);
-      this.v = fr.sort((a, b) => score(b) - score(a))[0] || null;
-    } catch (e) { this.v = null; }
+      let fr = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+      if (localOnly && fr.some(v => v.localService)) fr = fr.filter(v => v.localService);
+      const score = v => (/fr[-_]FR/i.test(v.lang) ? 4 : 0) + (!localOnly && /natural|neural/i.test(v.name) ? 2 : 0) + (v.localService ? 1 : 0);
+      return fr.sort((a, b) => score(b) - score(a))[0] || null;
+    } catch (e) { return null; }
   },
   say(text, force) {
     if ((!db.settings.voice && !force) || !('speechSynthesis' in window)) return;
-    try {
-      speechSynthesis.cancel();
+    const speak = localOnly => {
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'fr-FR';
-      if (!this.v) this.pick();
-      if (this.v) u.voice = this.v;
       u.rate = 1.05;
+      const v = this.pick(localOnly);
+      if (v) u.voice = v;
+      if (!localOnly && v && !v.localService) {
+        u.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') speak(true); };
+      }
       speechSynthesis.speak(u);
-    } catch (e) {}
+    };
+    try { speechSynthesis.cancel(); speak(navigator.onLine === false); } catch (e) {}
   },
 };
-if ('speechSynthesis' in window) { voice.pick(); speechSynthesis.onvoiceschanged = () => voice.pick(); }
+if ('speechSynthesis' in window) {
+  try {
+    speechSynthesis.getVoices();   // la liste arrive de façon asynchrone : on rafraîchit l'écran Réglages quand elle est prête
+    speechSynthesis.onvoiceschanged = () => { if (route().view === 'settings') render(); };
+  } catch (e) {}
+}
 
 let wakeLock = null;
 async function keepAwake(on) {
@@ -1434,12 +1444,14 @@ function viewSettings() {
   let used = null;
   try { used = 0; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(KEY)) used += (localStorage.getItem(k) || '').length; } } catch (e) { used = null; }
   const seg = (action, cur, vals) => `<div class="seg">${vals.map(([v, l]) => `<button class="${String(cur) === String(v) ? 'on' : ''}" aria-pressed="${String(cur) === String(v)}" data-action="${action}" data-val="${v}">${l}</button>`).join('')}</div>`;
-  const vname = voice.v ? voice.v.name : null;
+  const vv = 'speechSynthesis' in window ? voice.pick(false) : null, vloc = 'speechSynthesis' in window ? voice.pick(true) : null;
+  const vname = vv ? esc(vv.name) + (vv.localService ? ' (installée sur l\'appareil, marche hors ligne)'
+    : vloc && vloc.localService ? ` (en ligne ; hors ligne : ${esc(vloc.name)})` : ' (en ligne ; aucune voix française installée pour le hors ligne)') : null;
   return `<main class="page">${topbar('Réglages')}
     ${storageWarn()}
     <section class="section"><h2>Annonce vocale</h2><div class="card">
       <div class="opt-row"><div class="opt-lbl">Annonces</div><div>${seg('set-voice', !!s.voice, [[true, 'Activées'], [false, 'Coupées']])}
-      <div class="hint">${'speechSynthesis' in window ? (vname ? 'Voix utilisée : ' + esc(vname) : 'Aucune voix française trouvée : la voix par défaut sera utilisée. Sous Windows, ajoute le français dans Paramètres › Heure et langue › Voix.') : 'La synthèse vocale n\'est pas disponible dans ce navigateur.'}</div></div></div>
+      <div class="hint">${'speechSynthesis' in window ? (vname ? 'Voix utilisée : ' + vname : 'Aucune voix française trouvée : la voix par défaut sera utilisée. Sous Windows, ajoute le français dans Paramètres › Heure et langue › Voix.') : 'La synthèse vocale n\'est pas disponible dans ce navigateur.'}</div></div></div>
       <div class="opt-row"><div class="opt-lbl">Essai</div><div><button class="btn" data-action="test-voice">${icon('sound')} Écouter</button></div></div>
     </div></section>
     <section class="section"><h2>Thème</h2><div class="card">${seg('set-theme', s.theme, [['auto', 'Auto'], ['dark', 'Sombre'], ['light', 'Clair']])}</div></section>
