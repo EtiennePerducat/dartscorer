@@ -325,6 +325,28 @@ input[type=search]:focus{border-color:var(--accent);outline:none}
 .check{display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:12px;background:var(--surface-2);margin-top:12px;cursor:pointer;font-weight:650}
 .check input{width:20px;height:20px;accent-color:var(--danger);margin:1px 0 0;flex:none}
 .check small{display:block;font-weight:400;color:var(--muted);margin-top:4px}
+
+/* ---------- Photos de profil ---------- */
+.avatar{overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar .ic{width:36px;height:36px;color:var(--muted)}
+.avatar.xs{width:26px;height:26px;border-width:2px;font-size:.6rem}
+.avatar.sm{width:32px;height:32px;border-width:2px;font-size:.7rem}
+.avatar.xl{width:96px;height:96px;font-size:1.8rem;border-width:4px}
+.avatar.busy{opacity:.45}
+.avatar.win{border-color:var(--gold);box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 30%,transparent);margin:0 auto 4px}
+.avatar-edit{position:relative;flex:none;border-radius:50%}
+.avatar-edit .cam{position:absolute;right:-2px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;border:3px solid var(--bg)}
+.avatar-edit .cam .ic{width:16px;height:16px;color:inherit}
+.photo-edit{display:flex;align-items:center;gap:16px;margin:12px 0 4px}
+.photo-btns{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.photo-btns .btn{min-height:44px;padding:0 12px;justify-content:flex-start}
+.chip.with-photo{padding-left:6px}
+.sel-item .avatar{flex:none}
+.turn>.avatar{flex:none}
+@media (max-width:420px){.turn>.avatar{display:none}}
+.crg .ph .avatar{margin-bottom:2px}
+.pc-top,.ck-top{min-height:26px}
 </style>
 </head>
 <body>
@@ -375,6 +397,10 @@ function save(k, v) {
     toast('Sauvegarde impossible (stockage plein ou bloqué)', 'bad', 3500);
   }
 }
+// Essai d'écriture sans effet de bord en cas d'échec (stockage plein)
+function trySave(k, v) {
+  try { localStorage.setItem(KEY + k, JSON.stringify(v)); return true; } catch (e) { return false; }
+}
 const db = {
   profiles: load('profiles', []),
   games: load('games', []),
@@ -395,6 +421,31 @@ const activeProfiles = () => db.profiles.filter(p => !p.deleted).sort((a, b) => 
 const pname = p => (profile(p.id) || p).name;
 const pcolor = p => { const pr = profile(p.id); return validColor(pr ? pr.color : p.color); };
 const pc = p => `var(--p${pcolor(p)})`;
+
+/* Photos de profil : petite image JPEG carrée (data URL) rangée dans le profil.
+   À l'affichage on passe par une URL blob, plus légère à réinjecter à chaque rendu. */
+const validPhoto = s => typeof s === 'string' && s.length < 400000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(s);
+const photoUrls = new Map();
+function photoOf(p) {
+  const pr = profile(p.id) || p, d = pr.photo;
+  if (typeof d !== 'string' || !d.startsWith('data:image/')) return '';
+  let u = photoUrls.get(d);
+  if (!u) {
+    try {
+      const [head, b64] = d.split(','), bin = atob(b64), a = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+      u = URL.createObjectURL(new Blob([a], { type: head.slice(5, head.indexOf(';')) }));
+    } catch (e) { u = d; }
+    photoUrls.set(d, u);
+  }
+  return u;
+}
+function avatar(p, cls = '') {
+  const pr = profile(p.id) || p, ph = photoOf(pr);
+  return `<span class="avatar ${cls}" style="--pc:var(--p${validColor(pr.color)})">${ph ? `<img src="${esc(ph)}" alt="">` : esc(initials(pr.name))}</span>`;
+}
+// Petite photo seulement si le joueur en a une (sinon rien : la couleur suffit)
+const photoMini = (p, cls = 'xs') => photoOf(p) ? avatar(p, cls) : '';
 
 /* =====================================================================
    Fléchettes : codes "M" (raté), "S20", "D20", "T20", "S25" (25), "D25" (Bull)
@@ -775,7 +826,7 @@ function toast(msg, kind = '', ms = 1500) {
   toastTimer = setTimeout(() => { el.className = kind; }, ms);
 }
 
-const app = { mod: 0, modalColor: 0, modalSave: null, pendingConfirm: null, adm: { filter: 'active', sort: 'name', q: '' } };
+const app = { mod: 0, modalColor: 0, modalSave: null, modalPhoto: null, photoToken: 0, pendingConfirm: null, adm: { filter: 'active', sort: 'name', q: '' } };
 function openModal(html) {
   $('#modal-root').innerHTML = `<div class="modal-back" data-action="modal-bg"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
   const f = $('#modal-root [autofocus]');
@@ -797,10 +848,21 @@ function nextColor() {
 function profileModal(p, onSave) {
   app.modalSave = onSave;
   app.modalColor = p ? validColor(p.color) : nextColor();
+  app.modalPhoto = p && validPhoto(p.photo) ? p.photo : null;
+  app.photoToken++;
+  // « Prendre une photo » ouvre directement l'appareil photo sur téléphone et tablette ;
+  // sur ordinateur le même bouton ouvrirait juste l'explorateur de fichiers, on ne le montre pas.
+  const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
   openModal(`<h3>${p ? 'Modifier le joueur' : 'Nouveau joueur'}</h3>
     <form data-submit="profile" data-id="${p ? esc(p.id) : ''}" autocomplete="off">
+      <div class="photo-edit"><span class="avatar xl" id="ph-prev"></span>
+        <div class="photo-btns">
+          ${touch ? `<label class="btn file-btn">${icon('camera')} Prendre une photo<input type="file" accept="image/*" capture="user" data-change="photo" aria-label="Prendre une photo"></label>` : ''}
+          <label class="btn file-btn ${touch ? 'ghost' : ''}">${icon('image')} ${touch ? 'Choisir une image' : 'Choisir une photo'}<input type="file" accept="image/*" data-change="photo" aria-label="Choisir une image"></label>
+          <button type="button" class="btn ghost" id="ph-clear" data-action="photo-clear">${icon('trash')} Retirer la photo</button>
+        </div></div>
       <label class="lbl" for="pname">Nom</label>
-      <input type="text" id="pname" maxlength="24" value="${p ? esc(p.name) : ''}" placeholder="Ex. Marie" autofocus>
+      <input type="text" id="pname" data-input="pname" maxlength="24" value="${p ? esc(p.name) : ''}" placeholder="Ex. Marie" autofocus>
       <div class="lbl">Couleur</div>
       <div class="swatches">${Array.from({ length: COLORS }, (_, i) =>
         `<button type="button" class="sw ${i === app.modalColor ? 'on' : ''}" style="--pc:var(--p${i})" data-action="pick-color" data-c="${i}" aria-label="Couleur ${i + 1}"></button>`).join('')}</div>
@@ -808,6 +870,63 @@ function profileModal(p, onSave) {
       <div class="actions"><button type="button" class="btn" data-action="modal-close">Annuler</button>
       <button type="submit" class="btn primary">Enregistrer</button></div>
     </form>`);
+  refreshPhotoPreview();
+}
+// Aperçu dans la fenêtre : photo, sinon initiales du nom saisi, sinon icône appareil photo
+function refreshPhotoPreview() {
+  const prev = $('#ph-prev');
+  if (!prev) return;
+  prev.style.setProperty('--pc', `var(--p${app.modalColor})`);
+  const name = ($('#pname') || {}).value || '';
+  prev.innerHTML = app.modalPhoto ? `<img src="${esc(app.modalPhoto)}" alt="Photo du joueur">` : name.trim() ? esc(initials(name)) : icon('camera');
+  const clear = $('#ph-clear');
+  if (clear) clear.hidden = !app.modalPhoto;
+}
+const PHOTO_PX = 192;
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible')); };
+    img.src = url;
+  });
+}
+// Recadre au carré et réduit à PHOTO_PX (≈ 15-25 Ko en JPEG) pour ménager le stockage du navigateur.
+async function photoFromFile(file) {
+  const img = await loadImage(file);   // le navigateur applique l'orientation EXIF de la photo
+  const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h);
+  if (!s) throw new Error('Image vide');
+  // Photo en hauteur : on cadre un peu au-dessus du centre, là où se trouve d'habitude le visage
+  let src = img, x = (w - s) / 2, y = h > w ? (h - s) * 0.4 : (h - s) / 2, size = s;
+  while (size / 2 >= PHOTO_PX) {   // réduction par paliers : plus net qu'un seul grand saut
+    const half = Math.round(size / 2), c = document.createElement('canvas');
+    c.width = c.height = half;
+    c.getContext('2d').drawImage(src, x, y, size, size, 0, 0, half, half);
+    src = c; x = 0; y = 0; size = half;
+  }
+  const out = document.createElement('canvas');
+  out.width = out.height = PHOTO_PX;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PHOTO_PX, PHOTO_PX);
+  ctx.drawImage(src, x, y, size, size, 0, 0, PHOTO_PX, PHOTO_PX);
+  return out.toDataURL('image/jpeg', 0.82);
+}
+async function setModalPhoto(file) {
+  if (!file) return;
+  const token = app.photoToken, prev = $('#ph-prev'), err = $('#perr');
+  if (prev) prev.classList.add('busy');
+  try {
+    const data = await photoFromFile(file);
+    if (token !== app.photoToken) return;   // fenêtre fermée ou changée entre-temps
+    app.modalPhoto = data;
+    if (err) err.hidden = true;
+  } catch (e) {
+    if (token === app.photoToken && err) { err.textContent = 'Impossible de lire cette image. Essaie une autre photo.'; err.hidden = false; }
+  } finally {
+    if (prev) prev.classList.remove('busy');
+    if (token === app.photoToken) refreshPhotoPreview();
+  }
 }
 
 /* =====================================================================
@@ -838,6 +957,8 @@ const I = {
   archive: '<path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/>',
   merge: '<path d="M6 4v16"/><path d="M6 9c0 3.5 3 6 7 6h5"/><path d="M15 12l3 3-3 3"/>',
   chart: '<path d="M3 20h18"/><path d="M6 16v-5M11 16V6M16 16v-8"/>',
+  camera: '<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/>',
 };
 const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[name]}</svg>`;
 
@@ -1024,12 +1145,13 @@ function viewSetup() {
   const actives = activeProfiles();
   const chips = actives.map(p => {
     const on = s.players.includes(p.id);
-    return `<button class="chip ${on ? 'on' : ''}" style="--pc:var(--p${validColor(p.color)})" aria-pressed="${on}" data-action="setup-toggle" data-id="${esc(p.id)}"><span class="dot" style="margin:0"></span>${esc(p.name)}</button>`;
+    const ph = photoMini(p);
+    return `<button class="chip ${on ? 'on' : ''} ${ph ? 'with-photo' : ''}" style="--pc:var(--p${validColor(p.color)})" aria-pressed="${on}" data-action="setup-toggle" data-id="${esc(p.id)}">${ph || '<span class="dot" style="margin:0"></span>'}${esc(p.name)}</button>`;
   }).join('');
   const hcpOn = s.type === 'x01' && o.handicap;
   const sel = s.players.map((id, i) => {
     const p = profile(id), start = s.hcp[id] || o.start;
-    return `<div class="sel-item" style="--pc:var(--p${validColor(p.color)})"><span class="ord">${i + 1}</span><span class="nm">${esc(p.name)}</span>
+    return `<div class="sel-item" style="--pc:var(--p${validColor(p.color)})"><span class="ord">${i + 1}</span>${photoMini(p, 'sm')}<span class="nm">${esc(p.name)}</span>
       ${hcpOn ? `<select data-change="hcp" data-pid="${esc(id)}" aria-label="Score de départ de ${esc(p.name)}">${HCP_STARTS.map(v => `<option value="${v}" ${v === start ? 'selected' : ''}>${v}</option>`).join('')}</select>` : ''}
       <button class="icon-btn sm" data-action="setup-move" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter ${esc(p.name)}">${icon('up')}</button>
       <button class="icon-btn sm" data-action="setup-toggle" data-id="${esc(id)}" aria-label="Retirer ${esc(p.name)}">${icon('x')}</button></div>`;
@@ -1114,7 +1236,7 @@ function turnPanel(g, st) {
     const m = sum(t.results.map(r => r.marks));
     total = `${m}<small>M</small>`;
   } else total = `${t.results.filter(r => r.hit).length}<small>✓</small>`;
-  return `<div class="turn" style="--pc:${pc(p)}"><div class="turn-who"><small>${g.players.length > 1 ? 'À toi' : 'Volée'}</small>${esc(pname(p))}</div>
+  return `<div class="turn" style="--pc:${pc(p)}">${photoMini(p, '')}<div class="turn-who"><small>${g.players.length > 1 ? 'À toi' : 'Volée'}</small>${esc(pname(p))}</div>
     <div class="slots">${slots}</div><div class="turn-total">${total}</div></div>${extra}`;
 }
 function actButtons(g, inPad) {
@@ -1126,7 +1248,7 @@ function actButtons(g, inPad) {
 function gameX01(g, st) {
   const S = st.leg.state, t = st.leg.turn, n = g.players.length, live = liveStats(g, st);
   const cards = g.players.map((p, i) => `<div class="pcard ${t && t.p === i ? 'is-cur' : ''}" style="--pc:${pc(p)}">
-      <div class="pc-top"><span class="pc-name">${esc(pname(p))}</span>${legsDots(g, st, i)}</div>
+      <div class="pc-top">${photoMini(p)}<span class="pc-name">${esc(pname(p))}</span>${legsDots(g, st, i)}</div>
       <div class="pc-rem">${S.rem[i]}</div>
       <div class="pc-meta">${!S.opened[i] ? '<span class="tag">Double pour ouvrir</span>' : ''}<span>Moy. <b>${fmt1(live[i].avg)}</b></span><span>Dern. <b>${live[i].last == null ? '–' : live[i].last}</b></span></div>
     </div>`).join('');
@@ -1144,7 +1266,7 @@ function gameX01(g, st) {
 function gameCricket(g, st) {
   const S = st.leg.state, t = st.leg.turn, n = g.players.length, cur = t ? t.p : -1, mode = g.opts.mode, live = liveStats(g, st);
   let h = `<div class="crg" style="--n:${n}"><div class="h"></div>`;
-  h += g.players.map((p, i) => `<div class="h ph ${i === cur ? 'is-cur' : ''}" style="--pc:${pc(p)}"><span class="nm">${esc(pname(p))}</span>${mode !== 'nopoints' ? `<b class="pts">${S.pts[i]}</b>` : ''}${legsDots(g, st, i)}<span class="sub">${fmt1(live[i].mpr)} MPR</span></div>`).join('');
+  h += g.players.map((p, i) => `<div class="h ph ${i === cur ? 'is-cur' : ''}" style="--pc:${pc(p)}">${photoMini(p)}<span class="nm">${esc(pname(p))}</span>${mode !== 'nopoints' ? `<b class="pts">${S.pts[i]}</b>` : ''}${legsDots(g, st, i)}<span class="sub">${fmt1(live[i].mpr)} MPR</span></div>`).join('');
   h += `<div class="h hb" style="grid-column:span 3">${mode === 'cutthroat' ? 'Le plus bas gagne' : mode === 'nopoints' ? 'Sans points' : ''}</div>`;
   for (const tg of CR_TARGETS) {
     const dead = g.players.every((_, i) => S.marks[i][tg] >= 3);
@@ -1164,7 +1286,7 @@ function gameClock(g, st) {
   const rows = g.players.map((p, i) => {
     const pos = S.pos[i], tg = seq[pos];
     return `<div class="ck-row ${i === cur ? 'is-cur' : ''}" style="--pc:${pc(p)}">
-      <div class="ck-top"><span class="pc-name">${esc(pname(p))}</span>${legsDots(g, st, i)}<span class="ck-target"><small>Cible</small>${tg == null ? '✓' : tg === 25 ? 'Bull' : tg}</span></div>
+      <div class="ck-top">${photoMini(p)}<span class="pc-name">${esc(pname(p))}</span>${legsDots(g, st, i)}<span class="ck-target"><small>Cible</small>${tg == null ? '✓' : tg === 25 ? 'Bull' : tg}</span></div>
       <div class="ck-track" style="--len:${seq.length}">${seq.map((v, k) => `<span class="pip ${k < pos ? 'done' : k === pos ? 'now' : ''}">${k < pos ? '' : v === 25 ? 'B' : v}</span>`).join('')}</div>
     </div>`;
   }).join('');
@@ -1198,7 +1320,7 @@ function statsTable(g, P, winner) {
   </tbody></table></div>`;
 }
 function viewEnd(g, st) {
-  const { P } = matchStats(g), multi = g.players.length > 1, w = g.players[st.winner];
+  const { P } = matchStats(g), multi = g.players.length > 1, w = g.players[st.winner], hero = multi ? w : g.players[0];
   let sub = `${esc(gameTitle(g))} · ${esc(gameSub(g))}`;
   if (!multi) {
     const s = P[0];
@@ -1207,7 +1329,7 @@ function viewEnd(g, st) {
       : `En ${plural(s.darts, 'fléchette')} · ${fmtPct(s.hitRate)} de réussite`;
   }
   return `<div class="end" role="dialog" aria-modal="true" aria-label="Fin de partie"><div class="card end-card">
-    <div class="end-top">${icon('trophy')}<h2>${multi ? `${esc(pname(w))} gagne !` : 'Partie terminée !'}</h2><p class="muted" style="margin:0">${sub}</p></div>
+    <div class="end-top">${hero && photoOf(hero) ? avatar(hero, 'xl win') : icon('trophy')}<h2>${multi ? `${esc(pname(w))} gagne !` : 'Partie terminée !'}</h2><p class="muted" style="margin:0">${sub}</p></div>
     ${statsTable(g, P, st.winner)}
     <div class="end-actions">
       <button class="btn primary big" data-action="rematch">Revanche</button>
@@ -1307,7 +1429,7 @@ function viewPlayers() {
     if (A.x01.avg != null) bits.push('moy. ' + fmt1(A.x01.avg));
     if (A.winPct != null) bits.push(fmtPct(A.winPct) + ' de victoires');
     return `<button class="list-item" data-action="go" data-to="player/${esc(encodeURIComponent(p.id))}" style="--pc:var(--p${validColor(p.color)})">
-      <span class="avatar">${esc(initials(p.name))}</span><span class="grow"><b>${esc(p.name)}</b><span class="muted small">${bits.join(' · ')}</span></span>${icon('chev')}</button>`;
+      ${avatar(p)}<span class="grow"><b>${esc(p.name)}</b><span class="muted small">${bits.join(' · ')}</span></span>${icon('chev')}</button>`;
   }).join('');
   const arch = db.profiles.filter(p => p.deleted).length;
   return `<main class="page">
@@ -1324,7 +1446,7 @@ function viewProfile(id) {
   const tools = off ? '' : `<button class="icon-btn" data-action="edit-profile" data-id="${esc(p.id)}" aria-label="Modifier">${icon('edit')}</button><button class="icon-btn" data-action="delete-profile" data-id="${esc(p.id)}" aria-label="Archiver" title="Archiver">${icon('archive')}</button>`;
   let html = `<main class="page">
     ${topbar('', tools, off ? 'admin' : 'players')}
-    <div class="prof-head" style="--pc:var(--p${validColor(p.color)})"><span class="avatar lg">${esc(initials(p.name))}</span><div><h2>${esc(p.name)}</h2>
+    <div class="prof-head">${off ? avatar(p, 'xl') : `<button class="avatar-edit" data-action="edit-profile" data-id="${esc(p.id)}" aria-label="${p.photo ? 'Changer la photo' : 'Ajouter une photo'}" title="${p.photo ? 'Changer la photo' : 'Ajouter une photo'}">${avatar(p, 'xl')}<span class="cam">${icon('camera')}</span></button>`}<div><h2>${esc(p.name)}</h2>
       <div class="muted small">${plural(A.games, 'partie')} jouée${A.games > 1 ? 's' : ''}${p.createdAt ? ' · depuis le ' + fmtDate(p.createdAt) : ''}</div></div></div>
     ${off ? `<div class="note"><span>${admStatusText(p)} : ce joueur n'apparaît plus dans les listes.</span><button class="btn" data-action="adm-restore" data-id="${esc(p.id)}">${icon('undo')} Restaurer</button></div>` : ''}`;
   if (!A.games) return html + `<div class="empty"><p>Pas encore de partie terminée. Les stats apparaîtront ici.</p><button class="btn primary" data-action="go" data-to="setup">Nouvelle partie</button></div></main>`;
@@ -1397,7 +1519,7 @@ function viewAdmin() {
   shown.sort(st.sort === 'games' ? (a, b) => use(b.id).games - use(a.id).games || byName(a, b)
     : st.sort === 'recent' ? (a, b) => use(b.id).last - use(a.id).last || byName(a, b) : byName);
   const rows = shown.map(p => `<button class="list-item adm-item ${p.deleted ? 'off' : ''}" data-action="adm-menu" data-id="${esc(p.id)}" data-q="${esc(fold(p.name))}" style="--pc:var(--p${validColor(p.color)})">
-      <span class="avatar">${esc(initials(p.name))}</span>
+      ${avatar(p)}
       <span class="grow"><b><span class="nm">${esc(p.name)}</span>${p.deleted ? `<span class="tag">${admStatusText(p)}</span>` : ''}</b><span class="muted small">${admMeta(p, use(p.id))}</span></span>${icon('menu')}</button>`).join('');
 
   // Doublons possibles : mêmes lettres une fois accents, espaces et tirets retirés (Étienne / Etienne, Jean-Luc / Jean Luc)
@@ -1457,6 +1579,7 @@ function mergeProfiles(fromId, toId) {
   db.games.forEach(remap);
   remap(db.current);
   from.deleted = true; from.mergedInto = toId;
+  if (!to.photo && from.photo) to.photo = from.photo;
   const s = db.settings.setup;
   if (s && Array.isArray(s.players)) {
     const i = s.players.indexOf(fromId);
@@ -1619,7 +1742,7 @@ function viewSettings() {
     </div></section>
     <section class="section"><h2>Sauvegarde des données</h2><div class="card">
       <p style="margin-top:0">Les joueurs et les parties sont enregistrés <b>dans ce navigateur, sur cet appareil</b>. Pour les copier sur un autre appareil ou les mettre à l'abri, exporte un fichier, puis importe-le de l'autre côté.</p>
-      <p class="muted small">L'import <b>fusionne</b> : rien n'est écrasé, les parties déjà présentes sont ignorées et les joueurs de même nom sont regroupés.</p>
+      <p class="muted small">L'import <b>fusionne</b> : rien n'est écrasé, les parties déjà présentes sont ignorées et les joueurs de même nom sont regroupés. Les photos de profil font partie de la sauvegarde.</p>
       <div class="row-btns"><button class="btn primary" data-action="export">${icon('download')} Exporter</button>
       <label class="btn file-btn">${icon('upload')} Importer<input type="file" accept=".json,application/json" data-change="import"></label></div>
       <p class="hint">${plural(activeProfiles().length, 'joueur')} · ${plural(db.games.length, 'partie')}${used != null ? ' · ' + Math.max(1, Math.ceil(used / 1024)) + ' Ko utilisés' : ''}</p>
@@ -1661,10 +1784,13 @@ function importData(obj) {
     if (!p || typeof p.id !== 'string' || typeof p.name !== 'string' || !p.name.trim()) continue;
     const clean = { id: p.id.slice(0, 64), name: p.name.trim().slice(0, 24), color: validColor(p.color), createdAt: +p.createdAt || Date.now() };
     if (p.deleted) clean.deleted = true;
+    if (validPhoto(p.photo)) clean.photo = p.photo;
+    // Profil déjà présent : rien n'est écrasé, mais il récupère la photo s'il n'en a pas
+    const adopt = x => { if (clean.photo && !x.photo) x.photo = clean.photo; };
     const byId = profile(clean.id);
-    if (byId) { map[p.id] = byId.id; continue; }
+    if (byId) { adopt(byId); map[p.id] = byId.id; continue; }
     const byName = !clean.deleted && db.profiles.find(x => !x.deleted && x.name.toLowerCase() === clean.name.toLowerCase());
-    if (byName) { map[p.id] = byName.id; merged++; continue; }
+    if (byName) { adopt(byName); map[p.id] = byName.id; merged++; continue; }
     db.profiles.push(clean); map[p.id] = clean.id; if (!clean.deleted) added++;
   }
   const ids = new Set(db.games.map(g => g.id));
@@ -1713,7 +1839,9 @@ const actions = {
   'pick-color': (ds, el) => {
     app.modalColor = +ds.c;
     document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b === el));
+    refreshPhotoPreview();
   },
+  'photo-clear': () => { app.modalPhoto = null; refreshPhotoPreview(); },
 
   // Nouvelle partie
   'setup-type': ds => {
@@ -1756,11 +1884,11 @@ const actions = {
     const p = profile(ds.id);
     if (!p) return;
     const id = esc(p.id), canMerge = activeProfiles().some(o => o.id !== p.id);
-    openModal(`<div class="adm-head" style="--pc:var(--p${validColor(p.color)})"><span class="avatar">${esc(initials(p.name))}</span>
+    openModal(`<div class="adm-head">${avatar(p)}
         <div class="grow" style="min-width:0"><h3>${esc(p.name)}</h3><div class="muted small">${p.deleted ? admStatusText(p) + ' · ' : ''}${admMeta(p, profileUsage()(p.id))}</div></div></div>
       <div class="menu-list">
         <button class="btn block" data-action="go" data-to="player/${esc(encodeURIComponent(p.id))}">${icon('chart')} Voir les stats</button>
-        <button class="btn block" data-action="edit-profile" data-id="${id}">${icon('edit')} Modifier le nom ou la couleur</button>
+        <button class="btn block" data-action="edit-profile" data-id="${id}">${icon('edit')} Modifier (nom, couleur, photo)</button>
         ${canMerge ? `<button class="btn block" data-action="adm-merge" data-id="${id}">${icon('merge')} Fusionner avec un autre joueur</button>` : ''}
         ${p.deleted ? `<button class="btn block" data-action="adm-restore" data-id="${id}">${icon('undo')} Restaurer</button>`
           : `<button class="btn block" data-action="adm-archive" data-id="${id}">${icon('archive')} Archiver</button>`}
@@ -1791,7 +1919,7 @@ const actions = {
     openModal(`<h3>Fusionner ${esc(p.name)} avec…</h3>
       <p class="muted">Choisis le profil qui récupère les parties ${deN(esc(p.name))}. Son profil sera ensuite archivé.</p>
       <div class="list" style="margin-top:14px">${others.map(o => `<button class="list-item" data-action="adm-merge-pick" data-from="${esc(p.id)}" data-to="${esc(o.id)}" style="--pc:var(--p${validColor(o.color)})">
-        <span class="avatar">${esc(initials(o.name))}</span><span class="grow"><b>${esc(o.name)}</b><span class="muted small">${use(o.id).games ? plural(use(o.id).games, 'partie') : 'aucune partie'}</span></span>${icon('chev')}</button>`).join('')}</div>
+        ${avatar(o)}<span class="grow"><b>${esc(o.name)}</b><span class="muted small">${use(o.id).games ? plural(use(o.id).games, 'partie') : 'aucune partie'}</span></span>${icon('chev')}</button>`).join('')}</div>
       <div class="actions"><button class="btn" data-action="modal-close">Annuler</button></div>`);
   },
   'adm-merge-pick': ds => {
@@ -1803,7 +1931,8 @@ const actions = {
       if (g.players.some(p => p.id === b.id)) shared++; else moved++;
     });
     const text = (moved ? `${plural(moved, 'partie')} ${deN(a.name)} ${moved > 1 ? 'passent' : 'passe'} sur ${b.name}` : `${a.name} n'a aucune partie à transférer`)
-      + `, puis le profil ${deN(a.name)} est archivé. Le profil ${deN(b.name)} garde son nom et sa couleur.`
+      + `, puis le profil ${deN(a.name)} est archivé. Le profil ${deN(b.name)} garde son nom et sa couleur`
+      + (b.photo ? ', et sa photo.' : a.photo ? `, et récupère la photo ${deN(a.name)}.` : '.')
       + (shared ? ` ${plural(shared, 'partie jouée', 'parties jouées')} ensemble ${shared > 1 ? 'restent' : 'reste'} au nom ${deN(a.name)}.` : '');
     confirmBox({ title: `Fusionner ${a.name} avec ${b.name} ?`, text, ok: 'Fusionner' }, () => {
       mergeProfiles(a.id, b.id); render(); toast('Profils fusionnés', 'good');
@@ -1893,10 +2022,18 @@ const submits = {
     const fail = m => { err.textContent = m; err.hidden = false; };
     if (!name) return fail('Donne un nom au joueur.');
     if (db.profiles.some(x => !x.deleted && x.id !== id && x.name.toLowerCase() === name.toLowerCase())) return fail('Ce nom existe déjà.');
+    const draft = id ? Object.assign({}, profile(id), { name, color: app.modalColor }) : { id: uid(), name, color: app.modalColor, createdAt: Date.now() };
+    if (app.modalPhoto) draft.photo = app.modalPhoto; else delete draft.photo;
+    // On vérifie que ça tient dans le stockage avant de modifier quoi que ce soit (une photo peut le remplir)
+    const list = id ? db.profiles.map(x => x.id === id ? draft : x) : db.profiles.concat(draft);
+    if (storageOK && !trySave('profiles', list)) {
+      return fail(app.modalPhoto ? 'Le stockage du navigateur est plein : la photo ne rentre pas. Retire-la, ou libère de la place (photos d\'autres joueurs, anciennes parties).'
+        : 'Le stockage du navigateur est plein : impossible d\'enregistrer.');
+    }
     let p;
-    if (id) { p = profile(id); p.name = name; p.color = app.modalColor; }
-    else { p = { id: uid(), name, color: app.modalColor, createdAt: Date.now() }; db.profiles.push(p); }
-    persist.profiles();
+    if (id) { p = profile(id); Object.assign(p, draft); if (!draft.photo) delete p.photo; }
+    else { p = draft; db.profiles.push(p); }
+    if (!storageOK) persist.profiles();
     closeModal();
     const cb = app.modalSave; app.modalSave = null;
     if (cb) cb(p);
@@ -1921,10 +2058,13 @@ document.addEventListener('change', e => {
   if (el.dataset.change === 'hcp') { const s = setupState(); s.hcp[el.dataset.pid] = +el.value; persist.settings(); }
   else if (el.dataset.change === 'import') { importFile(el.files && el.files[0]); el.value = ''; }
   else if (el.dataset.change === 'adm-sort') { app.adm.sort = el.value; render(); }
+  else if (el.dataset.change === 'photo') { setModalPhoto(el.files && el.files[0]); el.value = ''; }
 });
 document.addEventListener('input', e => {
   const el = e.target.closest('[data-input]');
-  if (el && el.dataset.input === 'adm-search') { app.adm.q = el.value; filterAdmin(); }
+  if (!el) return;
+  if (el.dataset.input === 'adm-search') { app.adm.q = el.value; filterAdmin(); }
+  else if (el.dataset.input === 'pname' && !app.modalPhoto) refreshPhotoPreview();
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('#modal-root').innerHTML) { closeModal(); return; }
