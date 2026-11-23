@@ -299,6 +299,32 @@ input[type=text]:focus{border-color:var(--accent);outline:none}
 .sw.on{box-shadow:0 0 0 3px var(--text)}
 .file-btn{position:relative;overflow:hidden}
 .file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+[hidden]{display:none!important}
+.link{color:var(--accent);font-weight:650;text-decoration:underline;text-underline-offset:2px}
+.note{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:14px 0 0}
+
+/* ---------- Gestion des profils ---------- */
+input[type=search]{width:100%;min-height:50px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface-2);padding:0 14px;font-size:1.05rem}
+input[type=search]:focus{border-color:var(--accent);outline:none}
+.adm-tools{display:flex;flex-direction:column;gap:12px}
+.adm-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.adm-bar .seg button{display:inline-flex;align-items:center;gap:6px}
+.adm-sort{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--text-2)}
+.adm-sort select{min-height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface-2);padding:0 10px;font-weight:650}
+.adm-list{margin-top:10px}
+.adm-item b{display:flex;align-items:center;gap:8px;min-width:0}
+.adm-item .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.adm-item .tag{flex:none}
+.adm-item.off .avatar{opacity:.55;border-style:dashed}
+.adm-item.off .nm{color:var(--text-2)}
+.adm-head{display:flex;align-items:center;gap:12px}
+.adm-head h3{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dup-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 0;border-top:1px solid var(--line)}
+.dup-row:first-of-type{border-top:0;padding-top:0}
+.dup-row:last-child{padding-bottom:0}
+.check{display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:12px;background:var(--surface-2);margin-top:12px;cursor:pointer;font-weight:650}
+.check input{width:20px;height:20px;accent-color:var(--danger);margin:1px 0 0;flex:none}
+.check small{display:block;font-weight:400;color:var(--muted);margin-top:4px}
 </style>
 </head>
 <body>
@@ -749,7 +775,7 @@ function toast(msg, kind = '', ms = 1500) {
   toastTimer = setTimeout(() => { el.className = kind; }, ms);
 }
 
-const app = { mod: 0, modalColor: 0, modalSave: null, pendingConfirm: null };
+const app = { mod: 0, modalColor: 0, modalSave: null, pendingConfirm: null, adm: { filter: 'active', sort: 'name', q: '' } };
 function openModal(html) {
   $('#modal-root').innerHTML = `<div class="modal-back" data-action="modal-bg"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
   const f = $('#modal-root [autofocus]');
@@ -808,6 +834,10 @@ const I = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
   upload: '<path d="M12 21V9M7 14l5-5 5 5M5 3h14"/>',
+  sliders: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+  archive: '<path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8"/><path d="M10 12h4"/>',
+  merge: '<path d="M6 4v16"/><path d="M6 9c0 3.5 3 6 7 6h5"/><path d="M15 12l3 3-3 3"/>',
+  chart: '<path d="M3 20h18"/><path d="M6 16v-5M11 16V6M16 16v-8"/>',
 };
 const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[name]}</svg>`;
 
@@ -926,6 +956,7 @@ function render() {
         html = viewGame(); break;
       case 'players': html = viewPlayers(); break;
       case 'player': html = viewProfile(r.id); break;
+      case 'admin': html = viewAdmin(); break;
       case 'history': html = r.id ? viewGameDetail(r.id) : viewHistory(); break;
       case 'settings': html = viewSettings(); break;
       default: html = viewHome();
@@ -938,6 +969,7 @@ function render() {
   }
   $('#app').innerHTML = html;
   document.body.dataset.view = r.view;
+  if (r.view === 'admin') filterAdmin();
   keepAwake(r.view === 'game' && !!db.current && !db.current.finishedAt);
   enhanceCharts();
 }
@@ -962,7 +994,7 @@ function viewHome() {
     <div class="home-grid">
       <button class="tile" data-action="go" data-to="players">${icon('users')}<b>Joueurs &amp; stats</b><span class="muted small">${plural(np, 'profil')}</span></button>
       <button class="tile" data-action="go" data-to="history">${icon('history')}<b>Historique</b><span class="muted small">${plural(db.games.length, 'partie')}</span></button>
-      <button class="tile" data-action="go" data-to="settings">${icon('gear')}<b>Réglages</b><span class="muted small">Voix, sauvegarde</span></button>
+      <button class="tile" data-action="go" data-to="settings">${icon('gear')}<b>Réglages</b><span class="muted small">Voix, profils, sauvegarde</span></button>
     </div>
   </main>`;
 }
@@ -1277,20 +1309,24 @@ function viewPlayers() {
     return `<button class="list-item" data-action="go" data-to="player/${esc(encodeURIComponent(p.id))}" style="--pc:var(--p${validColor(p.color)})">
       <span class="avatar">${esc(initials(p.name))}</span><span class="grow"><b>${esc(p.name)}</b><span class="muted small">${bits.join(' · ')}</span></span>${icon('chev')}</button>`;
   }).join('');
+  const arch = db.profiles.filter(p => p.deleted).length;
   return `<main class="page">
-    ${topbar('Joueurs &amp; stats', `<button class="btn primary" data-action="new-profile">${icon('plus')} Nouveau</button>`)}
+    ${topbar('Joueurs &amp; stats', `<button class="icon-btn" data-action="go" data-to="admin" aria-label="Gérer les profils" title="Gérer les profils">${icon('sliders')}</button><button class="btn primary" data-action="new-profile">${icon('plus')} Nouveau</button>`)}
     ${ps.length ? `<div class="list">${list}</div>` : `<div class="empty"><p>Aucun joueur pour l'instant.</p><button class="btn primary" data-action="new-profile">${icon('plus')} Créer un joueur</button></div>`}
+    ${arch ? `<p class="hint">${plural(arch, 'profil archivé', 'profils archivés')} · <button class="link" data-action="go" data-to="admin">Gérer les profils</button></p>` : ''}
   </main>`;
 }
 const kpi = (v, l) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`;
 function viewProfile(id) {
   const p = profile(id);
-  if (!p || p.deleted) return `<main class="page">${topbar('Joueur', '', 'players')}<div class="empty">Ce joueur n'existe plus.</div></main>`;
-  const A = profileStats(id), X = A.x01, C = A.cricket, K = A.clock;
+  if (!p) return `<main class="page">${topbar('Joueur', '', 'players')}<div class="empty">Ce joueur n'existe plus.</div></main>`;
+  const A = profileStats(id), X = A.x01, C = A.cricket, K = A.clock, off = !!p.deleted;
+  const tools = off ? '' : `<button class="icon-btn" data-action="edit-profile" data-id="${esc(p.id)}" aria-label="Modifier">${icon('edit')}</button><button class="icon-btn" data-action="delete-profile" data-id="${esc(p.id)}" aria-label="Archiver" title="Archiver">${icon('archive')}</button>`;
   let html = `<main class="page">
-    ${topbar('', `<button class="icon-btn" data-action="edit-profile" data-id="${esc(p.id)}" aria-label="Modifier">${icon('edit')}</button><button class="icon-btn" data-action="delete-profile" data-id="${esc(p.id)}" aria-label="Supprimer">${icon('trash')}</button>`, 'players')}
+    ${topbar('', tools, off ? 'admin' : 'players')}
     <div class="prof-head" style="--pc:var(--p${validColor(p.color)})"><span class="avatar lg">${esc(initials(p.name))}</span><div><h2>${esc(p.name)}</h2>
-      <div class="muted small">${plural(A.games, 'partie')} jouée${A.games > 1 ? 's' : ''}${p.createdAt ? ' · depuis le ' + fmtDate(p.createdAt) : ''}</div></div></div>`;
+      <div class="muted small">${plural(A.games, 'partie')} jouée${A.games > 1 ? 's' : ''}${p.createdAt ? ' · depuis le ' + fmtDate(p.createdAt) : ''}</div></div></div>
+    ${off ? `<div class="note"><span>${admStatusText(p)} : ce joueur n'apparaît plus dans les listes.</span><button class="btn" data-action="adm-restore" data-id="${esc(p.id)}">${icon('undo')} Restaurer</button></div>` : ''}`;
   if (!A.games) return html + `<div class="empty"><p>Pas encore de partie terminée. Les stats apparaîtront ici.</p><button class="btn primary" data-action="go" data-to="setup">Nouvelle partie</button></div></main>`;
   html += `<section class="section"><h2>Victoires</h2><div class="kpis">
     ${kpi(fmtPct(A.winPct), 'de victoires')}${kpi(A.won + ' / ' + A.played, 'parties gagnées')}
@@ -1321,6 +1357,127 @@ function viewProfile(id) {
   }
   html += `<section class="section"><h2>Dernières parties</h2><div class="list">${A.recent.map(historyItem).join('')}</div></section></main>`;
   return html;
+}
+
+/* =====================================================================
+   Vue : gestion des profils (admin)
+   ===================================================================== */
+const fold = s => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+// « de Marie », « d'Étienne »
+const deN = n => (/^[aeiouyàâäéèêëîïôöùûüœæ]/i.test(n) ? "d'" : 'de ') + n;
+const inCurrentGame = id => !!(db.current && !db.current.finishedAt && db.current.players.some(p => p.id === id));
+// Nombre de parties et date de la dernière, pour tous les profils en un seul passage
+function profileUsage() {
+  const u = new Map();
+  for (const g of db.games) for (const p of g.players) {
+    const e = u.get(p.id) || { games: 0, last: 0 };
+    e.games++; e.last = Math.max(e.last, g.finishedAt || 0);
+    u.set(p.id, e);
+  }
+  return id => u.get(id) || { games: 0, last: 0 };
+}
+function admMeta(p, u) {
+  const bits = [u.games ? plural(u.games, 'partie') : 'aucune partie'];
+  if (u.last) bits.push('dernière le ' + fmtDate(u.last));
+  if (p.createdAt) bits.push('créé le ' + fmtDate(p.createdAt));
+  return bits.join(' · ');
+}
+function admStatusText(p) {
+  const into = p.mergedInto && profile(p.mergedInto);
+  return into ? 'Fusionné dans ' + esc(into.name) : 'Archivé';
+}
+function admPerson(p, u) {
+  return `<span class="dot" style="--pc:var(--p${validColor(p.color)})"></span><b>${esc(p.name)}</b> <span class="muted small">(${u.games ? plural(u.games, 'partie') : 'aucune partie'})</span>`;
+}
+function viewAdmin() {
+  const st = app.adm, use = profileUsage();
+  const all = db.profiles.slice(), act = all.filter(p => !p.deleted), arch = all.filter(p => p.deleted);
+  const shown = st.filter === 'archived' ? arch : st.filter === 'all' ? all : act;
+  const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
+  shown.sort(st.sort === 'games' ? (a, b) => use(b.id).games - use(a.id).games || byName(a, b)
+    : st.sort === 'recent' ? (a, b) => use(b.id).last - use(a.id).last || byName(a, b) : byName);
+  const rows = shown.map(p => `<button class="list-item adm-item ${p.deleted ? 'off' : ''}" data-action="adm-menu" data-id="${esc(p.id)}" data-q="${esc(fold(p.name))}" style="--pc:var(--p${validColor(p.color)})">
+      <span class="avatar">${esc(initials(p.name))}</span>
+      <span class="grow"><b><span class="nm">${esc(p.name)}</span>${p.deleted ? `<span class="tag">${admStatusText(p)}</span>` : ''}</b><span class="muted small">${admMeta(p, use(p.id))}</span></span>${icon('menu')}</button>`).join('');
+
+  // Doublons possibles : mêmes lettres une fois accents, espaces et tirets retirés (Étienne / Etienne, Jean-Luc / Jean Luc)
+  const groups = new Map();
+  act.forEach(p => { const k = fold(p.name).replace(/[^a-z0-9]/g, ''); if (k) { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); } });
+  const dups = [...groups.values()].filter(g => g.length > 1).map(g => g.sort((a, b) => use(b.id).games - use(a.id).games || byName(a, b)));
+  const dupHtml = dups.length ? `<section class="section"><h2>Doublons possibles <span class="count">${dups.length}</span></h2><div class="card">
+      <p class="muted small" style="margin-top:0">Ces noms se ressemblent. S'il s'agit de la même personne, fusionne les profils pour regrouper ses parties et ses stats.</p>
+      ${dups.map(g => g.slice(1).map(p => `<div class="dup-row"><span class="grow">${admPerson(p, use(p.id))} → ${admPerson(g[0], use(g[0].id))}</span>
+        <button class="btn" data-action="adm-merge-pick" data-from="${esc(p.id)}" data-to="${esc(g[0].id)}">${icon('merge')} Fusionner</button></div>`).join('')).join('')}
+    </div></section>` : '';
+
+  const seg = (val, label, n) => `<button class="${st.filter === val ? 'on' : ''}" aria-pressed="${st.filter === val}" data-action="adm-filter" data-val="${val}">${label} <span class="count">${n}</span></button>`;
+  const empty = !all.length ? `<div class="empty"><p>Aucun joueur pour l'instant.</p><button class="btn primary" data-action="new-profile">${icon('plus')} Créer un joueur</button></div>`
+    : `<div class="empty">${st.filter === 'archived' ? 'Aucun profil archivé.' : 'Aucun joueur actif.'}</div>`;
+  return `<main class="page">
+    ${topbar('Gestion des profils', `<button class="btn primary" data-action="new-profile">${icon('plus')} Nouveau</button>`, 'settings')}
+    ${storageWarn()}
+    <div class="kpis">${kpi(act.length, act.length > 1 ? 'joueurs actifs' : 'joueur actif')}${kpi(arch.length, arch.length > 1 ? 'archivés' : 'archivé')}${kpi(act.filter(p => !use(p.id).games).length, 'sans partie')}${kpi(db.games.length, db.games.length > 1 ? 'parties enregistrées' : 'partie enregistrée')}</div>
+    ${dupHtml}
+    <section class="section"><h2>Profils</h2>
+      <div class="card adm-tools">
+        <input type="search" data-input="adm-search" value="${esc(st.q)}" placeholder="Rechercher un joueur" aria-label="Rechercher un joueur" autocomplete="off" enterkeyhint="search">
+        <div class="adm-bar"><div class="seg" role="group" aria-label="Afficher">${seg('active', 'Actifs', act.length)}${seg('archived', 'Archivés', arch.length)}${seg('all', 'Tous', all.length)}</div>
+        <label class="adm-sort">Trier par <select data-change="adm-sort">${[['name', 'Nom'], ['games', 'Parties'], ['recent', 'Dernière partie']].map(([v, l]) =>
+          `<option value="${v}" ${st.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+      </div>
+      ${rows ? `<div class="list adm-list">${rows}</div>` : empty}
+      <div class="empty" id="adm-none" hidden>Aucun joueur ne correspond à cette recherche.</div>
+      <p class="hint">Touche un profil pour le modifier, l'archiver, le fusionner ou le supprimer. Archiver retire un joueur des listes sans toucher à ses stats ; la suppression définitive efface le profil de cet appareil.</p>
+    </section>
+  </main>`;
+}
+// Filtre de recherche appliqué sans re-rendu, pour ne pas perdre le focus pendant la saisie
+function filterAdmin() {
+  const q = fold(app.adm.q), rows = document.querySelectorAll('.adm-item');
+  let n = 0;
+  rows.forEach(r => { const ok = !q || r.dataset.q.includes(q); r.hidden = !ok; if (ok) n++; });
+  const none = $('#adm-none');
+  if (none) none.hidden = n > 0 || !rows.length;
+}
+function archiveProfile(p, after) {
+  confirmBox({ title: `Archiver ${p.name} ?`, text: 'Le joueur disparaît des listes et du choix des joueurs. Ses parties et ses stats sont conservées : tu peux le restaurer à tout moment depuis Réglages › Gérer les profils.', ok: 'Archiver' }, () => {
+    p.deleted = true; persist.profiles(); after(); toast('Profil archivé');
+  });
+}
+// Les parties de "from" passent sur "to", puis "from" est archivé.
+// Une partie où les deux ont joué ensemble reste au nom de "from" (un joueur ne peut pas y figurer deux fois).
+function mergeProfiles(fromId, toId) {
+  const from = profile(fromId), to = profile(toId);
+  if (!from || !to || from === to) return;
+  const remap = g => {
+    if (!g || g.players.some(p => p.id === toId)) return;
+    const e = g.players.find(p => p.id === fromId);
+    if (e) Object.assign(e, { id: toId, name: to.name, color: validColor(to.color) });
+  };
+  db.games.forEach(remap);
+  remap(db.current);
+  from.deleted = true; from.mergedInto = toId;
+  const s = db.settings.setup;
+  if (s && Array.isArray(s.players)) {
+    const i = s.players.indexOf(fromId);
+    if (i >= 0) { if (s.players.includes(toId)) s.players.splice(i, 1); else s.players[i] = toId; }
+  }
+  persist.profiles(); persist.games(); persist.current(); persist.settings();
+}
+function purgeProfile(id, withGames) {
+  db.profiles = db.profiles.filter(p => p.id !== id);
+  if (withGames) {
+    db.games = db.games.filter(g => { const hit = g.players.some(p => p.id === id); if (hit) statCache.delete(g.id); return !hit; });
+    if (db.current && db.current.finishedAt && db.current.players.some(p => p.id === id)) { db.current = null; persist.current(); }
+    persist.games();
+  }
+  const s = db.settings.setup;
+  if (s) {
+    if (Array.isArray(s.players)) s.players = s.players.filter(x => x !== id);
+    if (s.hcp) delete s.hcp[id];
+    persist.settings();
+  }
+  persist.profiles();
 }
 
 /* ---------- Courbe d'évolution (SVG, survol + clavier) ---------- */
@@ -1455,6 +1612,11 @@ function viewSettings() {
       <div class="opt-row"><div class="opt-lbl">Essai</div><div><button class="btn" data-action="test-voice">${icon('sound')} Écouter</button></div></div>
     </div></section>
     <section class="section"><h2>Thème</h2><div class="card">${seg('set-theme', s.theme, [['auto', 'Auto'], ['dark', 'Sombre'], ['light', 'Clair']])}</div></section>
+    <section class="section"><h2>Profils joueurs</h2><div class="card">
+      <p style="margin-top:0">Renomme, archive, restaure, fusionne les doublons ou supprime définitivement les profils.</p>
+      <div class="row-btns"><button class="btn" data-action="go" data-to="admin">${icon('sliders')} Gérer les profils</button></div>
+      <p class="hint">${plural(activeProfiles().length, 'joueur actif', 'joueurs actifs')}${db.profiles.some(p => p.deleted) ? ' · ' + plural(db.profiles.filter(p => p.deleted).length, 'archivé') : ''}</p>
+    </div></section>
     <section class="section"><h2>Sauvegarde des données</h2><div class="card">
       <p style="margin-top:0">Les joueurs et les parties sont enregistrés <b>dans ce navigateur, sur cet appareil</b>. Pour les copier sur un autre appareil ou les mettre à l'abri, exporte un fichier, puis importe-le de l'autre côté.</p>
       <p class="muted small">L'import <b>fusionne</b> : rien n'est écrasé, les parties déjà présentes sont ignorées et les joueurs de même nom sont regroupés.</p>
@@ -1586,12 +1748,90 @@ const actions = {
     render();
   }),
   'edit-profile': ds => profileModal(profile(ds.id), () => render()),
-  'delete-profile': ds => {
+  'delete-profile': ds => { const p = profile(ds.id); if (p) archiveProfile(p, () => go('players')); },
+
+  // Gestion des profils
+  'adm-filter': ds => { app.adm.filter = ds.val; render(); },
+  'adm-menu': ds => {
     const p = profile(ds.id);
     if (!p) return;
-    confirmBox({ title: `Supprimer ${p.name} ?`, text: 'Le joueur disparaît des listes. Ses parties restent dans l\'historique.', ok: 'Supprimer', danger: true }, () => {
-      p.deleted = true; persist.profiles(); go('players');
+    const id = esc(p.id), canMerge = activeProfiles().some(o => o.id !== p.id);
+    openModal(`<div class="adm-head" style="--pc:var(--p${validColor(p.color)})"><span class="avatar">${esc(initials(p.name))}</span>
+        <div class="grow" style="min-width:0"><h3>${esc(p.name)}</h3><div class="muted small">${p.deleted ? admStatusText(p) + ' · ' : ''}${admMeta(p, profileUsage()(p.id))}</div></div></div>
+      <div class="menu-list">
+        <button class="btn block" data-action="go" data-to="player/${esc(encodeURIComponent(p.id))}">${icon('chart')} Voir les stats</button>
+        <button class="btn block" data-action="edit-profile" data-id="${id}">${icon('edit')} Modifier le nom ou la couleur</button>
+        ${canMerge ? `<button class="btn block" data-action="adm-merge" data-id="${id}">${icon('merge')} Fusionner avec un autre joueur</button>` : ''}
+        ${p.deleted ? `<button class="btn block" data-action="adm-restore" data-id="${id}">${icon('undo')} Restaurer</button>`
+          : `<button class="btn block" data-action="adm-archive" data-id="${id}">${icon('archive')} Archiver</button>`}
+        <button class="btn danger block" data-action="adm-purge" data-id="${id}">${icon('trash')} Supprimer définitivement</button>
+      </div>
+      <div class="actions"><button class="btn ghost" data-action="modal-close">Fermer</button></div>`);
+  },
+  'adm-archive': ds => { const p = profile(ds.id); if (p) archiveProfile(p, () => render()); },
+  'adm-restore': ds => {
+    const p = profile(ds.id);
+    if (!p) return;
+    const clash = activeProfiles().find(x => x.id !== p.id && x.name.toLowerCase() === p.name.toLowerCase());
+    if (clash) {
+      openModal(`<h3>Nom déjà pris</h3><p class="muted">Un joueur actif s'appelle déjà « ${esc(clash.name)} ». Fusionne les deux profils, ou renomme celui-ci avant de le restaurer.</p>
+        <div class="actions"><button class="btn" data-action="modal-close">Annuler</button>
+        <button class="btn" data-action="edit-profile" data-id="${esc(p.id)}">Renommer</button>
+        <button class="btn primary" data-action="adm-merge-pick" data-from="${esc(p.id)}" data-to="${esc(clash.id)}">Fusionner</button></div>`);
+      return;
+    }
+    delete p.deleted; delete p.mergedInto;
+    persist.profiles(); closeModal(); render();
+    toast('Profil restauré', 'good');
+  },
+  'adm-merge': ds => {
+    const p = profile(ds.id);
+    if (!p) return;
+    const use = profileUsage(), others = activeProfiles().filter(o => o.id !== p.id);
+    openModal(`<h3>Fusionner ${esc(p.name)} avec…</h3>
+      <p class="muted">Choisis le profil qui récupère les parties ${deN(esc(p.name))}. Son profil sera ensuite archivé.</p>
+      <div class="list" style="margin-top:14px">${others.map(o => `<button class="list-item" data-action="adm-merge-pick" data-from="${esc(p.id)}" data-to="${esc(o.id)}" style="--pc:var(--p${validColor(o.color)})">
+        <span class="avatar">${esc(initials(o.name))}</span><span class="grow"><b>${esc(o.name)}</b><span class="muted small">${use(o.id).games ? plural(use(o.id).games, 'partie') : 'aucune partie'}</span></span>${icon('chev')}</button>`).join('')}</div>
+      <div class="actions"><button class="btn" data-action="modal-close">Annuler</button></div>`);
+  },
+  'adm-merge-pick': ds => {
+    const a = profile(ds.from), b = profile(ds.to);
+    if (!a || !b || a === b) return;
+    let moved = 0, shared = 0;
+    db.games.forEach(g => {
+      if (!g.players.some(p => p.id === a.id)) return;
+      if (g.players.some(p => p.id === b.id)) shared++; else moved++;
     });
+    const text = (moved ? `${plural(moved, 'partie')} ${deN(a.name)} ${moved > 1 ? 'passent' : 'passe'} sur ${b.name}` : `${a.name} n'a aucune partie à transférer`)
+      + `, puis le profil ${deN(a.name)} est archivé. Le profil ${deN(b.name)} garde son nom et sa couleur.`
+      + (shared ? ` ${plural(shared, 'partie jouée', 'parties jouées')} ensemble ${shared > 1 ? 'restent' : 'reste'} au nom ${deN(a.name)}.` : '');
+    confirmBox({ title: `Fusionner ${a.name} avec ${b.name} ?`, text, ok: 'Fusionner' }, () => {
+      mergeProfiles(a.id, b.id); render(); toast('Profils fusionnés', 'good');
+    });
+  },
+  'adm-purge': ds => {
+    const p = profile(ds.id);
+    if (!p) return;
+    if (inCurrentGame(p.id)) {
+      openModal(`<h3>Partie en cours</h3><p class="muted">${esc(p.name)} joue la partie en cours. Termine-la ou abandonne-la avant de supprimer ce profil.</p>
+        <div class="actions"><button class="btn primary" data-action="modal-close">OK</button></div>`);
+      return;
+    }
+    const n = profileUsage()(p.id).games;
+    openModal(`<h3>Supprimer ${esc(p.name)} définitivement ?</h3>
+      <p class="muted">Le profil est effacé de cet appareil. Impossible de revenir en arrière.${p.deleted ? '' : ' Pour simplement le retirer des listes, archive-le plutôt.'}</p>
+      ${n ? `<label class="check"><input type="checkbox" id="purge-games"><span>Effacer aussi ${n > 1 ? `ses ${n} parties` : 'sa partie'}
+        <small>Sinon elles restent dans l'historique sous le nom « ${esc(p.name)} ». Effacées, les parties à plusieurs disparaissent aussi des stats des autres joueurs.</small></span></label>` : ''}
+      <div class="actions"><button class="btn" data-action="modal-close">Annuler</button>
+      <button class="btn danger" data-action="adm-purge-ok" data-id="${esc(p.id)}">Supprimer définitivement</button></div>`);
+  },
+  'adm-purge-ok': ds => {
+    const p = profile(ds.id), box = $('#purge-games');
+    closeModal();
+    if (!p) return;
+    purgeProfile(p.id, !!(box && box.checked));
+    if (route().view === 'admin') render(); else go('admin');
+    toast('Profil supprimé');
   },
 
   // Partie
@@ -1680,6 +1920,11 @@ document.addEventListener('change', e => {
   if (!el) return;
   if (el.dataset.change === 'hcp') { const s = setupState(); s.hcp[el.dataset.pid] = +el.value; persist.settings(); }
   else if (el.dataset.change === 'import') { importFile(el.files && el.files[0]); el.value = ''; }
+  else if (el.dataset.change === 'adm-sort') { app.adm.sort = el.value; render(); }
+});
+document.addEventListener('input', e => {
+  const el = e.target.closest('[data-input]');
+  if (el && el.dataset.input === 'adm-search') { app.adm.q = el.value; filterAdmin(); }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('#modal-root').innerHTML) { closeModal(); return; }

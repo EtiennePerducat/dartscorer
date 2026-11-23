@@ -5,6 +5,7 @@ Compteur de fléchettes pour **301, 501, Cricket et Horloge**, de 1 à 4 joueurs
 - Saisie fléchette par fléchette, annulation, suggestion de finish, annonce vocale.
 - Options choisies en début de partie : double in / double out / master out, bust ou non, handicap, manches, variantes du Cricket et de l'Horloge.
 - Stats par joueur : moyenne par volée, 100+ / 140+ / 180, finish, MPR, victoires, face-à-face, courbes d'évolution.
+- Gestion des profils (Réglages › Gérer les profils) : recherche, tri, archivage et restauration, fusion des doublons, suppression définitive.
 
 ## Utilisation
 
