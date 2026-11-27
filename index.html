@@ -353,6 +353,82 @@ body[data-view="game"] #app{height:100vh;height:100dvh;overflow:hidden}
   .t-clock .g-body.split .cr-acts{margin-top:0}
 }
 
+/* Stats de la partie en cours : seulement sur les grands écrans, dans la place libre.
+   Le panneau prend la hauteur qui reste ; s'il n'y en a pas assez, il ne montre rien
+   (requêtes de conteneur), et le graphique n'apparaît que s'il a la place. */
+.g-stats{display:none;flex:1 1 0;min-height:0;min-width:0;container:gstats/size}
+/* L'espacement avant le panneau est porté par son contenu : un panneau vide ne prend aucune place */
+.g-main>.g-stats{margin-top:-10px}
+.gs-in{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding-top:10px}
+.gs-h{margin:0;font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600;line-height:1.2}
+.gs-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.gs-kpi{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:9px 14px 10px;min-width:0;line-height:1.25}
+.gs-kpi span,.gs-kpi small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-kpi span{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.gs-kpi b{display:block;font-size:1.45rem;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.25}
+.gs-kpi small{font-size:.72rem;color:var(--muted);font-family:var(--font)}
+.gs-kpi.main{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
+.gs-kpi.main span,.gs-kpi.main small{color:inherit;opacity:.8}
+.gs-tbl{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:4px 10px}
+.gs-tbl table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+.gs-tbl th,.gs-tbl td{padding:6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid var(--line);line-height:1.25}
+.gs-tbl tr:last-child>*{border-bottom:0}
+.gs-tbl col.lbl{width:34%}
+.gs-tbl thead th{font-size:.72rem;font-weight:700}
+.gs-tbl thead .dot{width:8px;height:8px;margin-right:5px}
+.gs-tbl tbody th{text-align:left;font-size:.58rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding-left:4px}
+.gs-tbl td{font-weight:700;font-size:.9rem;font-family:var(--fd)}
+.gs-tbl .cur{background:color-mix(in srgb,var(--pc) 18%,transparent)}
+.gs-chart{flex:1 1 0;min-height:0;container:gchart/size}
+.gs-chart-in{height:100%;display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px 14px}
+.gs-ct{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;white-space:nowrap}
+.gs-leg{display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:.7rem;color:var(--text-2)}
+.gs-leg i{width:16px;border-top:2px dashed var(--accent)}
+.gs-plot{flex:1 1 0;min-height:0;position:relative;border-bottom:1.5px solid var(--line)}
+.gs-area{position:absolute;inset:18px 0 0}
+.gs-bars{height:100%;display:flex;align-items:flex-end;gap:6px}
+.gs-grp{flex:1 1 0;min-width:0;max-width:calc(var(--n,1) * 44px);height:100%;display:flex;align-items:flex-end;gap:2px}
+.gs-bar{flex:1 1 0;min-width:0;position:relative;height:max(3px,calc(var(--h) * 100%));background:var(--pc);border-radius:6px 6px 0 0}
+.gs-bar i{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);padding-bottom:3px;font-style:normal;font-size:.6rem;font-weight:700;color:var(--text-2);white-space:nowrap}
+.gs-bar.bust{height:3px;background:var(--danger)}
+.gs-bar.bust i{color:var(--danger)}
+.gs-bar.none{visibility:hidden}
+.gs-sep{flex:none;align-self:stretch;border-left:1.5px dashed var(--line)}
+.gs-avg{position:absolute;left:0;right:0;bottom:calc(var(--a) * 100%);border-top:2px dashed var(--accent);pointer-events:none}
+.gs-empty{position:absolute;inset:0;display:grid;place-items:center;padding:0 12px;color:var(--muted);font-size:.8rem;font-family:var(--font);text-align:center}
+@container gstats (max-width:419px){.gs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container gstats (min-width:620px) and (min-height:460px){.gs-kpi{padding:12px 18px 13px}.gs-kpi b{font-size:1.9rem}.gs-tbl td{font-size:1.05rem}.gs-tbl tbody th{font-size:.64rem}}
+@container gchart (max-height:110px){.gs-chart-in{display:none}}
+@container gchart (max-width:479px){.gs-bars.many .gs-bar i:not(.key){display:none}}
+/* Pas assez de hauteur : on retire les stats secondaires (l2, puis l3), puis tout */
+@container gstats (max-height:206px){.gs-in.solo .l2,.gs-in.solo .l3{display:none}}
+@container gstats (max-height:122px){.gs-in.solo{display:none}}
+@container gstats (max-width:419px) and (max-height:275px){.gs-in.solo .l2{display:none}}
+@container gstats (max-width:419px) and (max-height:206px){.gs-in.solo{display:none}}
+@container gstats (max-height:266px){.gs-in.multi .l2{display:none}}
+@container gstats (max-height:206px){.gs-in.multi .l3{display:none}}
+@container gstats (max-height:175px){.gs-in.multi{display:none}}
+@media (min-width:700px) and (min-height:600px){
+  .t-cricket .g-stats,.t-clock .g-stats{display:flex}
+}
+@media (orientation:landscape) and (min-width:700px) and (min-height:600px){
+  .g-body.split .g-stats{display:flex}
+  /* 301/501 sur la cible : la colonne de gauche prend la place que la cible (carrée) laisse */
+  .g-body.split.x01-board .g-main{flex-basis:clamp(300px,max(36vw,100vw - 100dvh + 100px),62vw)}
+}
+@media (orientation:landscape) and (min-width:1000px) and (min-height:600px){
+  /* Cricket : les stats passent dans une colonne à droite de la grille */
+  .t-cricket .g-main.narrow{max-width:1560px;display:grid;grid-template-columns:minmax(0,1fr) clamp(300px,30vw,480px);grid-template-rows:auto auto 1fr;gap:10px 22px}
+  .t-cricket .g-main>.g-stats{grid-column:2;grid-row:1/-1;margin-top:0}
+  .t-cricket .gs-in{padding-top:0}
+}
+@media (orientation:portrait) and (min-width:700px) and (min-height:600px){
+  /* Horloge en portrait : les stats remplissent le vide entre les joueurs et les boutons */
+  .t-clock .g-body.split .g-main{flex:1 1 0}
+  .t-clock .g-body.split .g-pad{flex:none}
+  .t-clock .g-body.split .ck-pad{flex:none;height:clamp(76px,18dvh,190px)}
+}
+
 /* Fin de partie */
 .end{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px 16px;overflow:auto}
 .end-card{width:100%;max-width:720px;margin:auto 0;box-shadow:var(--shadow);border-radius:32px}
@@ -1435,7 +1511,7 @@ function gameX01(g, st) {
       <div class="pd-meta">${!S.opened[i] ? '<span class="tag">Double pour ouvrir</span>' : `Moy. <b>${fmt1(live[i].avg)}</b><span class="pd-last"> · Dern. <b>${live[i].last == null ? '–' : live[i].last}</b></span>`}</div>
     </div>`;
   }).join('');
-  return `<div class="g-body split x01-${mode}"><div class="g-main"><div class="players n${n}">${discs}</div>${turnPanel(g, st)}</div>
+  return `<div class="g-body split x01-${mode}"><div class="g-main"><div class="players n${n}">${discs}</div>${turnPanel(g, st)}${statsPanel(g, st)}</div>
     <div class="g-pad">${mode === 'pad' ? padInput(g) : boardInput(g, st)}</div></div>`;
 }
 function gameCricket(g, st) {
@@ -1456,7 +1532,7 @@ function gameCricket(g, st) {
       : ['S', 'D', 'T'].map(m => `<button class="k k${m.toLowerCase()}" data-action="dart" data-code="${m}${tg}">${m === 'S' ? '' : m}${tg}</button>`).join('');
   }
   h += '</div>';
-  return `<div class="g-body"><div class="g-main narrow">${turnPanel(g, st)}${h}
+  return `<div class="g-body"><div class="g-main narrow">${turnPanel(g, st)}${h}${statsPanel(g, st)}
     <div class="acts cr-acts"><button class="k miss" data-action="dart" data-code="M">Raté</button><button class="k act" data-action="undo" ${g.darts.length ? '' : 'disabled'}>${icon('undo')} Annuler</button>${endTurnBtn()}</div></div></div>`;
 }
 function gameClock(g, st) {
@@ -1479,7 +1555,120 @@ function gameClock(g, st) {
   const pad = `<div class="ck-pad" style="--c:${btns.length + 1}">${btns.map(([c, l]) => `<button class="k hit" data-action="dart" data-code="${c}">${l}</button>`).join('')}
     <button class="k miss" data-action="dart" data-code="M">Raté</button></div>
     <div class="acts cr-acts"><button class="k act" data-action="undo" ${g.darts.length ? '' : 'disabled'}>${icon('undo')} Annuler</button>${endTurnBtn()}</div>`;
-  return `<div class="g-body split"><div class="g-main"><div class="ck n${g.players.length}">${rows}</div>${turnPanel(g, st)}</div><div class="g-pad">${pad}</div></div>`;
+  return `<div class="g-body split"><div class="g-main"><div class="ck n${g.players.length}">${rows}</div>${turnPanel(g, st)}${statsPanel(g, st)}</div><div class="g-pad">${pad}</div></div>`;
+}
+
+/* ---------- Stats de la partie en cours (grands écrans) ----------
+   Calculées sur les volées terminées, toutes manches confondues.
+   Le CSS n'affiche le panneau que si l'écran a la place. */
+function curStats(g, st) {
+  const T = g.type, n = g.players.length;
+  const P = g.players.map(() => ({ turns: 0, darts: 0, thrown: 0, onb: 0, pts: 0, best: 0, c100: 0, c140: 0, c180: 0, att: 0, fin: 0,
+    marks: 0, scoring: 0, tri: 0, dbl: 0, hits: 0, run: 0, streak: 0, perfect: 0, spent: {} }));
+  const vols = [];   // volées dans l'ordre : { p, v, bust, leg, round }
+  st.legs.forEach((L, li) => {
+    P.forEach(s => { s.run = 0; });
+    L.turns.forEach((t, k) => {
+      const s = P[t.p];
+      s.turns++; s.thrown += t.darts.length; s.darts += T === 'x01' && t.bust ? 3 : t.darts.length;
+      t.darts.forEach((c, j) => {
+        const r = t.results[j], d = parseDart(c);
+        if (d.m) s.onb++;
+        if (T === 'x01') { if (r.attempt) s.att++; if (r.legWinner === t.p) s.fin++; }
+        else if (T === 'cricket') { if (r.marks) { s.scoring++; if (d.m === 3) s.tri++; else if (d.m === 2) s.dbl++; } }
+        else {
+          s.spent[r.target] = (s.spent[r.target] || 0) + 1;
+          if (r.hit) s.streak = Math.max(s.streak, ++s.run); else s.run = 0;
+        }
+      });
+      const v = T === 'x01' ? t.pts : T === 'cricket' ? t.marks : t.hits;
+      s.best = Math.max(s.best, v);
+      if (T === 'x01') { s.pts += v; if (v === 180) s.c180++; else if (v >= 140) s.c140++; else if (v >= 100) s.c100++; }
+      else if (T === 'cricket') s.marks += v;
+      else { s.hits += v; if (v === 3) s.perfect++; }
+      vols.push({ p: t.p, v, bust: !!t.bust, leg: li, round: Math.floor(k / n) });
+    });
+  });
+  return { P, vols };
+}
+/* Lignes du panneau : k = libellé, v = valeur, sub = précision sous la valeur (tuiles d'un joueur seul),
+   t / tv = libellé / valeur dans le tableau à plusieurs. l = importance : quand la place manque, on retire d'abord
+   les lignes l: 2, puis l: 3 ; les autres (les trois principales) restent. */
+function curStatRows(g, st) {
+  const S = st.leg.state, vol = { k: 'Volées', l: 2, v: s => s.turns, sub: s => plural(s.darts, 'fléchette') };
+  if (g.type === 'x01') return [
+    { k: 'Moyenne', v: s => fmt1(s.darts ? s.pts / s.darts * 3 : null), sub: () => 'points par volée' },
+    vol,
+    { k: 'Meilleure volée', t: 'Meilleure', v: s => s.turns ? s.best : '–' },
+    { k: '100+ · 140+ · 180', t: '100+·140+·180', l: 2, v: s => `${s.c100} · ${s.c140} · ${s.c180}` },
+    g.opts.out === 'single' ? { k: 'Points marqués', t: 'Points', l: 3, v: s => s.pts }
+      : { k: 'Réussite au double', t: 'Au double', l: 3, v: s => fmtPct(s.att ? s.fin / s.att : null), sub: s => s.att ? `${s.fin} sur ${plural(s.att, 'tentative')}` : 'Pas encore tenté' },
+    { k: 'Précision', v: s => fmtPct(s.thrown ? s.onb / s.thrown : null), sub: () => 'fléchettes dans la cible' },
+  ];
+  if (g.type === 'cricket') return [
+    { k: 'MPR', v: s => fmt1(s.darts ? s.marks / s.darts * 3 : null), sub: () => 'marques par volée' },
+    vol,
+    { k: 'Précision', v: s => fmtPct(s.thrown ? s.scoring / s.thrown : null), sub: () => 'fléchettes qui marquent' },
+    { k: 'Meilleure volée', t: 'Meilleure', l: 3, v: s => s.turns ? s.best : '–', sub: s => s.turns ? (s.best > 1 ? 'marques' : 'marque') : '' },
+    { k: 'Triples', t: 'Triples·doubles', l: 2, v: s => s.tri, tv: s => `${s.tri} · ${s.dbl}`, sub: s => plural(s.dbl, 'double') },
+    { k: 'Numéros fermés', t: 'Fermés', v: (s, i) => `${CR_TARGETS.filter(tg => S.marks[i][tg] >= 3).length}/7`, sub: () => 'dans cette manche' },
+  ];
+  const len = clockSeq(g.opts).length;
+  const hardest = s => Object.entries(s.spent).sort((a, b) => b[1] - a[1])[0];
+  return [
+    { k: 'Précision', v: s => fmtPct(s.thrown ? s.hits / s.thrown : null), sub: s => `${s.hits} sur ${plural(s.thrown, 'fléchette')}` },
+    vol,
+    { k: 'Meilleure série', t: 'Série', v: s => s.streak, sub: () => 'touchés d\'affilée' },
+    { k: 'Volées parfaites', t: '3 sur 3', l: 2, v: s => s.perfect, sub: () => '3 touchés sur 3' },
+    { k: 'Le plus dur', v: s => { const h = hardest(s); return h ? (h[0] === '25' ? 'Bull' : h[0]) : '–'; },
+      sub: s => { const h = hardest(s); return h ? plural(h[1], 'fléchette') : ''; } },
+    { k: 'Progression', l: 3, v: (s, i) => `${Math.min(S.pos[i], len)}/${len}`, sub: () => 'dans cette manche' },
+  ];
+}
+function statsPanel(g, st) {
+  const { P, vols } = curStats(g, st), rows = curStatRows(g, st), n = g.players.length, cur = st.leg.turn ? st.leg.turn.p : -1;
+  const lv = r => r.l ? ' l' + r.l : '';
+  const top = n === 1
+    ? `<div class="gs-kpis">${rows.map((r, j) => `<div class="gs-kpi${j ? '' : ' main'}${lv(r)}"><span>${r.k}</span><b>${r.v(P[0], 0)}</b>${r.sub ? `<small>${r.sub(P[0], 0) || '&nbsp;'}</small>` : ''}</div>`).join('')}</div>`
+    : `<div class="gs-tbl"><table><colgroup><col class="lbl">${g.players.map(() => '<col>').join('')}</colgroup>
+      <thead><tr><th></th>${g.players.map((p, i) => `<th class="${i === cur ? 'cur' : ''}" style="--pc:${pc(p)}"><span class="dot"></span>${esc(pname(p))}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr class="${lv(r)}"><th>${r.t || r.k}</th>${P.map((s, i) => `<td class="${i === cur ? 'cur' : ''}" style="--pc:${pc(g.players[i])}">${(r.tv || r.v)(s, i)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<section class="g-stats" aria-label="Stats de la partie"><div class="gs-in ${n > 1 ? 'multi' : 'solo'}">
+    <h2 class="gs-h">Stats de la partie</h2>${top}${statsChart(g, P, vols)}</div></section>`;
+}
+// Graphique des volées : une barre par volée (un groupe par tour à plusieurs), les plus récentes
+function statsChart(g, P, vols) {
+  const T = g.type, n = g.players.length, unit = T === 'x01' ? 'points' : T === 'cricket' ? 'marques' : 'touchés';
+  const groups = [];
+  vols.forEach((v, idx) => {
+    const last = groups[groups.length - 1];
+    const grp = last && last.leg === v.leg && last.round === v.round ? last : { leg: v.leg, round: v.round, num: groups.length + 1, v: Array(n).fill(null) };
+    if (grp !== last) groups.push(grp);
+    grp.v[v.p] = Object.assign({ num: idx + 1 }, v);
+  });
+  const shown = groups.slice(-Math.max(6, Math.floor(24 / n)));
+  const vals = shown.flatMap(gr => gr.v.filter(v => v && !v.bust).map(v => v.v));
+  const top = T === 'clock' ? 3 : Math.max(T === 'x01' ? 60 : 3, ...vals), best = Math.max(0, ...vals);
+  let bars = '', prevLeg = shown.length ? shown[0].leg : 0;
+  shown.forEach((gr, gi) => {
+    if (gr.leg !== prevLeg) { bars += '<span class="gs-sep" aria-hidden="true"></span>'; prevLeg = gr.leg; }
+    bars += `<span class="gs-grp">${gr.v.map(v => {
+      if (!v) return n > 1 ? '<span class="gs-bar none"></span>' : '';
+      const p = g.players[v.p], lbl = v.bust ? 'Bust' : v.v;
+      const tip = `${n > 1 ? `Tour ${gr.num} · ${pname(p)}` : `Volée ${v.num}`} : ${v.bust ? 'bust' : `${v.v} ${unit}`}`;
+      // Valeur au-dessus de la barre : toutes s'il y a peu de volées, sinon la dernière et la meilleure (key)
+      const key = gi === shown.length - 1 || (!v.bust && v.v === best && best > 0);
+      const lblHtml = n > 1 || (!key && shown.length > 14) ? '' : `<i${key ? ' class="key"' : ''}>${lbl}</i>`;
+      return `<span class="gs-bar${v.bust ? ' bust' : ''}" style="--h:${(v.bust ? 0 : v.v / top).toFixed(3)};--pc:${pc(p)}" title="${esc(tip)}">${lblHtml}</span>`;
+    }).join('')}</span>`;
+  });
+  const s = P[0], avg = n > 1 || !s.turns ? null : T === 'x01' ? s.pts / s.darts * 3 : T === 'cricket' ? s.marks / s.darts * 3 : s.hits / s.turns;
+  const ttl = `${unit[0].toUpperCase() + unit.slice(1)} par volée`;
+  return `<div class="gs-chart"><div class="gs-chart-in" role="img" aria-label="${ttl}, ${plural(vols.length, 'volée')}">
+    <div class="gs-ct"><span>${ttl}</span>${avg != null ? `<span class="gs-leg"><i></i>moy. ${fmt1(avg)}</span>` : ''}</div>
+    <div class="gs-plot"><div class="gs-area">${vols.length ? `${avg != null ? `<div class="gs-avg" style="--a:${Math.min(1, avg / top).toFixed(3)}"></div>` : ''}<div class="gs-bars${shown.length > 8 ? ' many' : ''}" style="--n:${n}">${bars}</div>`
+      : '<div class="gs-empty">Le graphique se remplit à chaque volée.</div>'}</div></div>
+  </div></div>`;
 }
 function statCols(g) {
   const legs = (g.opts.legs || 1) > 1 ? [{ h: 'Manches', f: s => s.legsWon }] : [];
