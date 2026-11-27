@@ -106,21 +106,41 @@ b,strong{font-weight:700}
 .games{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 @media (max-width:620px){.games{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.games .game-card{min-height:56px;padding:4px;border-radius:999px;align-items:center;justify-content:center;text-align:center}.games .game-card span{display:none}.games .game-card b{font-size:.68rem;letter-spacing:-.03em}}
 /* Écrans qui tiennent dans la hauteur, sans défilement */
-.page.fit{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:auto;padding-bottom:calc(env(safe-area-inset-bottom) + 12px)}
+.page.fit{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:auto;padding-bottom:0}
 .page.fit .section{margin-top:10px}
 .page.fit .section>h2{margin-bottom:8px}
 .page.fit .topbar{margin-bottom:0}
-.page.fit .cta{position:static;margin-top:auto;padding:12px 0 0;background:none}
+.page.fit .sel-list{margin-top:0}
+/* Si l'écran est trop court, la page défile et le bouton de lancement reste en bas */
+.page.fit .cta{position:sticky;bottom:0;z-index:1;margin-top:auto;padding:12px 0 calc(env(safe-area-inset-bottom) + 12px);background:linear-gradient(transparent,var(--bg) 12px)}
 .h2-btn{margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 4px;color:var(--text-2);font:600 .7rem var(--fd);letter-spacing:0;text-transform:none}
 .h2-btn .ic{width:16px;height:16px}
 .sel-item{min-height:50px}
 .sel-item.sel-add{width:100%;border-style:dashed;color:var(--text-2);gap:12px;padding-left:16px;font-weight:600;font-size:.82rem;text-align:left}
-.rules-sum{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:10px 20px;border-radius:999px;background:var(--surface);border:1.5px solid var(--line);font-weight:600;font-size:.8rem;text-align:left;line-height:1.3}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.rules .opt-row{grid-template-columns:1fr;gap:5px;padding:6px 0}
+/* Règles affichées sur l'écran : libellé à gauche, choix à droite, explication dessous */
+.rules{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.rules .opt-row{grid-template-columns:150px 1fr;align-items:center;gap:4px 12px;padding:7px 0}
+.rules .opt-row:first-child{padding-top:0}
+.rules .opt-row:last-child{padding-bottom:0}
+.rules .opt-lbl{padding-top:0;font-size:.74rem;color:var(--text-2);line-height:1.25}
 .rules .seg button{min-height:40px;padding:0 14px}
-.rules .opt-lbl{padding-top:0;font-size:.74rem;color:var(--text-2)}
-.rules .hint{margin-top:3px;font-size:.76rem;line-height:1.3}
+.rules .seg button.num{min-width:40px;padding:0 8px}
+.rules .hint{grid-column:2;margin-top:0;font-size:.76rem;line-height:1.3}
+@media (max-width:560px){
+  .rules{padding:8px 12px}
+  .rules .opt-row{grid-template-columns:92px 1fr;gap:3px 8px;padding:4px 0}
+  .rules .opt-lbl{font-size:.64rem}
+  .rules .seg{gap:4px}
+  .rules .seg button{min-height:36px;padding:0 10px;font-size:.7rem}
+  .rules .seg button.num{min-width:36px;padding:0 6px}
+  .rules .hint{grid-column:1/-1;font-size:.72rem}
+}
+@media (min-width:900px){
+  .rules{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;padding:12px 20px}
+  .rules .opt-row{grid-template-columns:108px 1fr}
+  .rules .opt-row:nth-child(2){border-top:0;padding-top:0}
+  .rules .hint{grid-column:1/-1}
+}
 .pick-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
 .pick{display:flex;align-items:center;gap:8px;min-height:52px;padding:4px 10px 4px 4px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface-2);text-align:left;font-weight:600;font-size:.8rem;min-width:0}
 .pick .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1112,8 +1132,8 @@ const DEFAULT_OPTS = { start: 501, in: 'single', out: 'double', bust: true, hand
 const HCP_STARTS = [101, 201, 301, 401, 501, 601, 701];
 const OPTS = {
   x01: [
-    { key: 'in', label: 'Entrée', vals: [['single', 'Simple'], ['double', 'Double in']], hint: { double: 'Il faut toucher un double pour commencer à marquer.' } },
-    { key: 'out', label: 'Sortie', vals: [['single', 'Simple'], ['double', 'Double out'], ['master', 'Master out']],
+    { key: 'in', label: 'Entrée', vals: [['single', 'Simple'], ['double', 'Double']], hint: { double: 'Il faut toucher un double pour commencer à marquer.' } },
+    { key: 'out', label: 'Sortie', vals: [['single', 'Simple'], ['double', 'Double'], ['master', 'Master']],
       hint: { single: 'N\'importe quelle fléchette peut finir.', double: 'Il faut finir sur un double (le Bull compte comme double).', master: 'Il faut finir sur un double ou un triple.' } },
     { key: 'bust', label: 'Dépassement', vals: [[true, 'Bust'], [false, 'Sans bust']],
       hint: { true: 'Si on dépasse, toute la volée est annulée.', false: 'La fléchette qui fait dépasser est ignorée, on continue.' } },
@@ -1205,7 +1225,10 @@ function render() {
       <div class="row-btns"><button class="btn primary" data-action="go" data-to="">Accueil</button>
       ${r.view === 'game' ? '<button class="btn danger" data-action="abandon-game">Abandonner la partie</button>' : ''}</div></div></main>`;
   }
+  // Un écran qui défile dans sa propre hauteur garde sa position quand on le redessine
+  const prev = document.body.dataset.view === r.view && $('#app .page.fit'), top = prev ? prev.scrollTop : 0;
   $('#app').innerHTML = html;
+  if (top) { const sc = $('#app .page.fit'); if (sc) sc.scrollTop = top; }
   document.body.dataset.view = r.view;
   if (r.view === 'admin') filterAdmin();
   keepAwake(r.view === 'game' && !!db.current && !db.current.finishedAt);
@@ -1251,9 +1274,15 @@ function setupState() {
 }
 function segRow(d, val) {
   const hint = d.hint && d.hint[String(val)];
-  return `<div class="opt-row"><div class="opt-lbl">${d.label}</div><div><div class="seg" role="group" aria-label="${esc(d.label)}">${d.vals.map(([v, l]) =>
-    `<button class="${String(v) === String(val) ? 'on' : ''}" aria-pressed="${String(v) === String(val)}" data-action="setup-opt" data-key="${d.key}" data-val="${v}">${l}</button>`).join('')}</div>
-    ${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
+  return `<div class="opt-row"><div class="opt-lbl">${d.label}</div><div class="seg" role="group" aria-label="${esc(d.label)}">${d.vals.map(([v, l]) =>
+    `<button class="${String(v) === String(val) ? 'on' : ''}${d.num ? ' num' : ''}" aria-pressed="${String(v) === String(val)}" data-action="setup-opt" data-key="${d.key}" data-val="${v}">${l}</button>`).join('')}</div>
+    ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+}
+const LEGS_OPT = { key: 'legs', label: 'Manches à gagner', num: true, vals: [1, 2, 3, 4, 5].map(v => [v, String(v)]), hint: { 2: 'On tourne à chaque manche.', 3: 'On tourne à chaque manche.', 4: 'On tourne à chaque manche.', 5: 'On tourne à chaque manche.' } };
+// Règles du jeu choisi, réglables directement sur l'écran
+function rulesRows(s) {
+  const o = s.opts;
+  return OPTS[s.type].filter(d => !d.when || d.when(o)).map(d => segRow(d, o[d.key])).join('') + segRow(LEGS_OPT, o.legs);
 }
 function viewSetup() {
   const s = setupState(), o = s.opts, n = s.players.length;
@@ -1268,26 +1297,15 @@ function viewSetup() {
       <button class="icon-btn sm" data-action="setup-toggle" data-id="${esc(id)}" aria-label="Retirer ${esc(p.name)}">${icon('x')}</button></div>`;
   }).join('');
   const add = n < 4 ? `<button class="sel-item sel-add" data-action="setup-pick">${icon('plus')}<span class="nm">${n ? 'Ajouter un joueur' : 'Choisir les joueurs'}</span></button>` : '';
-  const rules = gameSub({ type: s.type, opts: o }) + (hcpOn ? ' · Handicap' : '');
   return `<main class="page fit">
     ${topbar('Nouvelle partie')}
     <section class="section"><h2>Jeu</h2><div class="games">${types.map(([k, t, d]) =>
       `<button class="game-card ${isOn(k) ? 'on' : ''}" aria-pressed="${isOn(k)}" data-action="setup-type" data-type="${k}"><b>${t}</b><span>${d}</span></button>`).join('')}</div></section>
     <section class="section"><h2>Joueurs <span class="count">${n}/4</span>${n > 1 ? `<button class="h2-btn" data-action="setup-shuffle">${icon('shuffle')} Mélanger</button>` : ''}</h2>
       <div class="sel-list">${sel}${add}</div></section>
-    <section class="section"><h2>Règles</h2><button class="rules-sum" data-action="setup-rules"><span class="grow">${esc(rules)}</span>${icon('sliders')}<span class="sr">Modifier les règles</span></button></section>
+    <section class="section"><h2>Règles</h2><div class="rules">${rulesRows(s)}</div></section>
     <div class="cta"><button class="btn primary big block" data-action="setup-start" ${n ? '' : 'disabled'}>${n ? 'Lancer la partie' : 'Choisis au moins un joueur'}</button></div>
   </main>`;
-}
-// Fenêtre des règles : rouverte à chaque changement pour suivre les choix
-function rulesModal() {
-  const s = setupState(), o = s.opts;
-  const rows = OPTS[s.type].filter(d => !d.when || d.when(o)).map(d => segRow(d, o[d.key])).join('')
-    + segRow({ key: 'legs', label: 'Manches à gagner', vals: [1, 2, 3, 4, 5].map(v => [v, String(v)]), hint: { 2: 'On tourne à chaque manche.', 3: 'On tourne à chaque manche.', 4: 'On tourne à chaque manche.', 5: 'On tourne à chaque manche.' } }, o.legs);
-  const title = s.type === 'x01' ? String(o.start) : s.type === 'cricket' ? 'Cricket' : 'Horloge';
-  openModal(`<h3>Règles · ${title}</h3><div class="rules">${rows}</div>
-    <div class="actions"><button class="btn primary" data-action="modal-close">OK</button></div>`);
-  app.modalRefresh = rulesModal;
 }
 // Fenêtre de choix des joueurs (4 au maximum, dans l'ordre où on les touche)
 function pickModal() {
@@ -2020,7 +2038,6 @@ const actions = {
     persist.settings(); render(); refreshModal();
   },
   'setup-pick': () => pickModal(),
-  'setup-rules': () => rulesModal(),
   'setup-move': ds => {
     const s = setupState(), i = +ds.i;
     if (i > 0) { [s.players[i - 1], s.players[i]] = [s.players[i], s.players[i - 1]]; persist.settings(); render(); }
@@ -2030,7 +2047,7 @@ const actions = {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
     persist.settings(); render();
   },
-  'setup-opt': ds => { const s = setupState(); s.opts[ds.key] = parseOpt(ds.key, ds.val); persist.settings(); render(); refreshModal(); },
+  'setup-opt': ds => { const s = setupState(); s.opts[ds.key] = parseOpt(ds.key, ds.val); persist.settings(); render(); },
   'setup-start': () => {
     if (db.current && !db.current.finishedAt) {
       confirmBox({ title: 'Remplacer la partie en cours ?', text: 'La partie en cours sera abandonnée et ne comptera pas dans les stats.', ok: 'Remplacer', danger: true }, startGame);
