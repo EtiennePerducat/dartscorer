@@ -89,18 +89,35 @@ b,strong{font-weight:700}
 .banner{background:var(--danger-soft);color:var(--danger);border-radius:18px;padding:10px 16px;margin:10px 0;font-size:.9rem}
 .row-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 
-/* ---------- Accueil ---------- */
-.home-hero{display:flex;align-items:center;gap:18px;margin:22px 0 28px}
-.logo{width:76px;height:76px;flex:none}
-.home-hero h1{margin:0;font-size:1.9rem;font-weight:800;letter-spacing:-.04em;line-height:1.05}
-.home-hero p{margin:4px 0 0;font-family:var(--fd);font-size:.8rem}
-.resume{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border-color:var(--accent);margin-bottom:12px;border-radius:999px;padding:12px 12px 12px 26px}
+/* ---------- Accueil ----------
+   Tient dans l'écran : la grande cible prend toute la place libre (au milieu en portrait,
+   à gauche en paysage) et les boutons restent groupés (en bas, ou à droite). */
+.page.home{height:100vh;height:100dvh;display:flex;flex-direction:column;gap:clamp(12px,2.4dvh,28px);overflow:auto;padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
+.home-hero{padding-top:clamp(6px,2dvh,24px)}
+.home-hero h1{margin:0;font-size:clamp(1.9rem,4.6dvh,3rem);font-weight:800;letter-spacing:-.04em;line-height:1.05}
+.home-hero p{margin:6px 0 0;font-family:var(--fd);font-size:clamp(.8rem,1.6dvh,1rem)}
+.home-art{flex:1 1 0;min-height:0;position:relative;container-type:size}
+.home-art svg{display:block;width:100%;height:100%;overflow:visible}
+@container (max-height:110px){.home-art .dsq{display:none}}
+.home-side{display:flex;flex-direction:column;gap:12px;flex:none}
+.resume{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border-color:var(--accent);border-radius:999px;padding:12px 12px 12px 26px}
 .resume b{font-size:1.05rem}
 .eyebrow{font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent-text);font-weight:600}
-.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .tile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:18px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);text-align:left;min-height:116px;font-weight:600}
 .tile .ic{width:44px;height:44px;padding:10px;border-radius:50%;background:var(--blue);color:var(--on-blue);margin-bottom:8px}
-@media (max-width:560px){.home-grid{grid-template-columns:1fr}.tile{min-height:0;flex-direction:row;align-items:center;gap:14px;border-radius:999px;padding:10px 22px 10px 10px}.tile .ic{margin:0}.tile b{flex:1}}
+@media (min-width:700px) and (min-height:900px){.page.home .btn.big{min-height:72px;font-size:1.1rem}.tile{min-height:140px;padding:22px}}
+/* Téléphone, et colonne de droite en paysage : les raccourcis en lignes */
+@media (max-width:560px),(orientation:landscape) and (min-width:700px){.home-grid{grid-template-columns:1fr}.tile{min-height:0;flex-direction:row;align-items:center;gap:14px;border-radius:999px;padding:10px 22px 10px 10px}.tile .ic{margin:0}.tile b{flex:1}}
+@media (orientation:landscape) and (min-width:700px){
+  .page.home{max-width:1560px;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,460px);grid-template-rows:1fr auto auto 1fr;grid-template-areas:"art ." "art hero" "art side" "art .";column-gap:clamp(28px,5vw,88px);row-gap:clamp(16px,3dvh,32px);padding-top:calc(env(safe-area-inset-top) + 24px);padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
+  .home-art{grid-area:art}
+  .home-hero{grid-area:hero;padding-top:0}
+  .home-side{grid-area:side}
+  .page.home .btn.big{min-height:68px}
+  .tile{min-height:72px;padding:12px 24px 12px 12px}
+  .tile .ic{width:48px;height:48px}
+}
 
 /* ---------- Nouvelle partie ---------- */
 .games{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -141,6 +158,44 @@ b,strong{font-weight:700}
   .rules .opt-row:nth-child(2){border-top:0;padding-top:0}
   .rules .hint{grid-column:1/-1}
 }
+.sel-item.sel-free{display:none;color:var(--muted)}
+.sel-item.sel-free .ord{background:none;border:1.5px dashed var(--line);color:var(--muted)}
+/* Écrans hauts (tablette en portrait, PC) : tout grandit avec la hauteur et les places libres s'affichent,
+   pour que la page soit remplie sans laisser un grand vide au-dessus du bouton de lancement */
+@media (min-width:700px) and (min-height:900px){
+  .page.fit.setup .section{margin-top:clamp(10px,2.2dvh,36px)}
+  .page.fit.setup .section>h2{margin-bottom:12px;font-size:.78rem}
+  .setup .games{gap:12px}
+  .setup .game-card{min-height:clamp(92px,10.5dvh,160px);padding:20px 22px}
+  .setup .game-card b{font-size:clamp(1.35rem,2.6dvh,2.1rem)}
+  .setup .game-card span{font-size:.92rem}
+  .setup .sel-list{gap:8px}
+  .setup .sel-item{min-height:clamp(50px,5.6dvh,72px);padding-left:12px}
+  .setup .sel-item .ord{width:38px;height:38px;font-size:.9rem}
+  .setup .sel-item .nm{font-size:1.02rem}
+  .setup .sel-item.sel-add{padding-left:22px;font-size:.92rem}
+  .setup .sel-item.sel-free{display:flex;padding-left:12px}
+  .setup .rules{padding:20px 26px}
+  .setup .rules .opt-row{padding:11px 0}
+  .setup .rules .opt-row:first-child{padding-top:0}
+  .setup .rules .opt-row:last-child{padding-bottom:0}
+  .setup .rules .opt-lbl{font-size:.84rem}
+  .setup .rules .seg{gap:8px}
+  .setup .rules .seg button{min-height:46px;padding:0 20px;font-size:.88rem}
+  .setup .rules .seg button.num{min-width:46px;padding:0 10px}
+  .setup .rules .hint{font-size:.86rem;margin-top:2px}
+  .page.fit.setup .cta .btn{min-height:76px;font-size:1.15rem}
+}
+/* Écran haut : les règles sur une seule colonne (les choix tiennent sur une ligne et remplissent la hauteur) */
+@media (min-width:900px) and (min-height:900px){
+  .setup .rules{display:block}
+  .setup .rules .opt-row{grid-template-columns:170px 1fr}
+  .setup .rules .opt-row:nth-child(2){border-top:1px solid var(--line);padding-top:11px}
+  .setup .rules .hint{grid-column:2}
+}
+/* La place qui reste est répartie entre les blocs plutôt que laissée au-dessus du bouton */
+.page.fit.setup{justify-content:space-between}
+.page.fit.setup .cta{margin-top:0}
 .pick-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
 .pick{display:flex;align-items:center;gap:8px;min-height:52px;padding:4px 10px 4px 4px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface-2);text-align:left;font-weight:600;font-size:.8rem;min-width:0}
 .pick .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -245,7 +300,7 @@ body[data-view="game"] #app{height:100vh;height:100dvh;overflow:hidden}
 .bsvg .b-ob{fill:var(--b-ob)}.bsvg .b-bull{fill:var(--b-bull)}
 .dboard [data-code]:hover{filter:brightness(1.18)}
 .dboard [data-code]:active{filter:brightness(.8)}
-.dboard .b-num{fill:var(--b-num);font:700 15px var(--fd);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.bsvg .b-num{fill:var(--b-num);font:700 15px var(--fd);text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .dboard .b-marks{pointer-events:none}
 .dboard .b-hit{fill:#fff;stroke:#05051A;stroke-width:3.5;paint-order:stroke}
 .dboard .b-tip-u{fill:none;stroke:#05051A;stroke-width:6}
@@ -287,6 +342,8 @@ body[data-view="game"] #app{height:100vh;height:100dvh;overflow:hidden}
 .t-cricket .g-main{container-type:size}
 .crg{--cell:clamp(36px,calc((100cqh - 306px) / 7),58px);--tgw:var(--cell);display:grid;grid-template-columns:var(--tgw) repeat(var(--n),minmax(0,1fr)) repeat(3,var(--cell));gap:8px 6px;align-items:center;padding:6px}
 .t-cricket .cr-acts{margin-top:auto}
+/* Sans le panneau de stats (téléphone) : les lignes de la grille s'écartent pour remplir la hauteur */
+@media (max-width:699px),(max-height:599px){.t-cricket .crg{flex:1 0 auto;align-content:space-evenly}}
 .crg .h{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;min-width:0;text-align:center;align-self:end}
 .crg .ph .pts-disc{width:clamp(44px,7dvh,62px);height:clamp(44px,7dvh,62px);border-radius:50%;display:grid;place-items:center;background:var(--surface);box-shadow:inset 0 0 0 5px var(--track);font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums}
 .crg .ph.is-cur .pts-disc{background:var(--blue);color:var(--on-blue);box-shadow:inset 0 0 0 5px var(--pc)}
@@ -331,6 +388,20 @@ body[data-view="game"] #app{height:100vh;height:100dvh;overflow:hidden}
 .ck.n3 .ck-row,.ck.n4 .ck-row{padding:8px 12px 10px}.ck.n3 .ck-top,.ck.n4 .ck-top{min-height:40px}.ck.n3 .ck-target b,.ck.n4 .ck-target b{width:40px;height:40px;font-size:.95rem}.ck.n3 .ck-track,.ck.n4 .ck-track{margin-top:8px}.ck.n4 .pip{max-height:18px}
 .ck-pad .k.hit{background:var(--strong);color:var(--on-strong);border-color:var(--strong)}
 .ck-pad .k.hit small{color:inherit;opacity:.75}
+/* Cible repère : prend la place libre, les boutons gardent une hauteur fixe */
+.ck-board{flex:1 1 0;min-height:0;position:relative;container-type:size}
+.ck-board svg{display:block;width:100%;height:100%;overflow:visible}
+.ck-board .b-s,.ck-board .b-r,.ck-board .b-ob,.ck-board .b-bull{opacity:.22}
+.ck-board .b-num{opacity:.5}
+.ck-board [data-hl]{opacity:1}
+.ck-board .b-s[data-hl],.ck-board .b-ob[data-hl]{fill:var(--accent)}
+.ck-board .b-r[data-hl],.ck-board .b-bull[data-hl]{fill:var(--b-s2)}
+.ck-board .b-num[data-hl]{fill:var(--accent);font-size:24px}
+@container (max-height:130px){.ck-board .dsq{display:none}}
+.t-clock .g-pad{container:ckpad/size}
+.t-clock .ck-board + .ck-pad{flex:none;height:clamp(76px,12dvh,140px)}
+/* Pas la place pour une cible lisible : on la retire et les boutons reprennent la hauteur */
+@container ckpad (max-height:310px){.ck-board{display:none}.t-clock .ck-board + .ck-pad{flex:1 1 0;height:auto}}
 
 /* Disposition tablette / PC / téléphone en paysage */
 @media (orientation:landscape) and (min-width:700px){
@@ -427,6 +498,17 @@ body[data-view="game"] #app{height:100vh;height:100dvh;overflow:hidden}
   .t-clock .g-body.split .g-main{flex:1 1 0}
   .t-clock .g-body.split .g-pad{flex:none}
   .t-clock .g-body.split .ck-pad{flex:none;height:clamp(76px,18dvh,190px)}
+  .t-clock .ck-board{display:none}
+  .t-clock .g-pad{container-type:normal}
+  /* 301 / 501 au pavé en portrait : même principe, les stats occupent le vide au-dessus du pavé */
+  .g-body.x01-pad .g-stats{display:flex}
+  .g-body.x01-pad .g-main{flex:1 1 0}
+  .g-body.x01-pad .g-pad{flex:none}
+}
+/* Téléphone, saisie au pavé : les touches grandissent pour occuper la hauteur libre */
+@media (max-width:699px){
+  .g-body.x01-pad .pad{flex:1 1 auto;grid-auto-rows:minmax(0,1fr);max-height:540px}
+  .g-body.x01-pad .pad .k{height:100%}
 }
 
 /* Fin de partie */
@@ -1166,9 +1248,10 @@ function wedge(r1, r2, a1, a2) {
   const [x1, y1] = bpt(r2, a1), [x2, y2] = bpt(r2, a2), [x3, y3] = bpt(r1, a2), [x4, y4] = bpt(r1, a1);
   return `M${f2(x1)} ${f2(y1)}A${r2} ${r2} 0 0 1 ${f2(x2)} ${f2(y2)}L${f2(x3)} ${f2(y3)}A${r1} ${r1} 0 0 0 ${f2(x4)} ${f2(y4)}Z`;
 }
-// Segments de la cible ; « live » ajoute les codes de fléchette pour la saisie au toucher
-function boardShapes(live) {
-  const at = code => live ? ` data-action="dart" data-code="${code}"` : '';
+// Segments de la cible ; « live » ajoute les codes de fléchette pour la saisie au toucher.
+// nums : affiche les numéros ; hl : codes des zones à mettre en avant (ex. Set ['S3', 'D3', 'T3'])
+function boardShapes(live, { nums = live, hl = null } = {}) {
+  const at = code => (live ? ` data-action="dart" data-code="${code}"` : '') + (hl && hl.has(code) ? ' data-hl' : '');
   const out = [`<circle class="b-rim" r="${BR.rim}"/>`];
   for (let i = 0; i < 20; i++) {
     const n = BOARD_ORDER[i], a1 = (i - 0.5) * Math.PI / 10, a2 = (i + 0.5) * Math.PI / 10, c = i % 2 ? 'l' : 'd';
@@ -1178,11 +1261,15 @@ function boardShapes(live) {
       `<path class="b-r ${c}" d="${wedge(BR.dI, BR.dO, a1, a2)}"${at('D' + n)}/>`);
   }
   out.push(`<circle class="b-ob" r="${BR.ob}"${at('S25')}/><circle class="b-bull" r="${BR.b}"${at('D25')}/>`);
-  if (live) BOARD_ORDER.forEach((n, i) => { const [x, y] = bpt(BR.num, i * Math.PI / 10); out.push(`<text class="b-num" x="${f2(x)}" y="${f2(y)}">${n}</text>`); });
+  if (nums) BOARD_ORDER.forEach((n, i) => {
+    const [x, y] = bpt(BR.num, i * Math.PI / 10), on = hl && (hl.has('S' + n) || hl.has('D' + n) || hl.has('T' + n));
+    out.push(`<text class="b-num"${on ? ' data-hl' : ''} x="${f2(x)}" y="${f2(y)}">${n}</text>`);
+  });
   return out.join('');
 }
 const BOARD_LIVE = boardShapes(true);
-const LOGO = `<svg class="logo bsvg" viewBox="${BOARD_VIEW}" aria-hidden="true">${boardShapes(false)}</svg>`;
+// Grande cible de l'accueil (décor, avec les numéros)
+const HOME_BOARD = `<svg class="bsvg" viewBox="${BOARD_VIEW}" aria-hidden="true">${boardShapes(false, { nums: true })}</svg>`;
 // Centre de la zone touchée par une fléchette (k décale un peu les fléchettes d'une même volée)
 function dartSpot(code, k = 1) {
   const d = parseDart(code);
@@ -1324,15 +1411,16 @@ function viewHome() {
       <div class="muted small">${g.players.map(p => esc(pname(p))).join(' · ')}</div></div>
       <span class="btn primary">Reprendre ${icon('next')}</span></button>` : '';
   const np = activeProfiles().length;
-  return `<main class="page">
-    <div class="home-hero">${LOGO}<div><h1>DartScorer</h1><p class="muted">301 · 501 · Cricket · Horloge</p></div></div>
-    ${storageWarn()}${resume}
+  return `<main class="page home">
+    <div class="home-hero"><h1>DartScorer</h1><p class="muted">301 · 501 · Cricket · Horloge</p></div>
+    <div class="home-art"><div class="dsq">${HOME_BOARD}</div></div>
+    <div class="home-side">${storageWarn()}${resume}
     <button class="btn primary big block" data-action="go" data-to="setup">${icon('plus')} Nouvelle partie</button>
     <div class="home-grid">
       <button class="tile" data-action="go" data-to="players">${icon('users')}<b>Joueurs &amp; stats</b><span class="muted small">${plural(np, 'profil')}</span></button>
       <button class="tile" data-action="go" data-to="history">${icon('history')}<b>Historique</b><span class="muted small">${plural(db.games.length, 'partie')}</span></button>
       <button class="tile" data-action="go" data-to="settings">${icon('gear')}<b>Réglages</b><span class="muted small">Voix, profils, sauvegarde</span></button>
-    </div>
+    </div></div>
   </main>`;
 }
 
@@ -1372,8 +1460,11 @@ function viewSetup() {
       <button class="icon-btn sm" data-action="setup-move" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Monter ${esc(p.name)}">${icon('up')}</button>
       <button class="icon-btn sm" data-action="setup-toggle" data-id="${esc(id)}" aria-label="Retirer ${esc(p.name)}">${icon('x')}</button></div>`;
   }).join('');
-  const add = n < 4 ? `<button class="sel-item sel-add" data-action="setup-pick">${icon('plus')}<span class="nm">${n ? 'Ajouter un joueur' : 'Choisir les joueurs'}</span></button>` : '';
-  return `<main class="page fit">
+  // Places libres : la première ouvre le choix des joueurs ; les suivantes ne s'affichent que sur les écrans hauts
+  const add = Array.from({ length: 4 - n }, (_, k) => k === 0
+    ? `<button class="sel-item sel-add" data-action="setup-pick">${icon('plus')}<span class="nm">${n ? 'Ajouter un joueur' : 'Choisir les joueurs'}</span></button>`
+    : `<button class="sel-item sel-add sel-free" data-action="setup-pick" tabindex="-1" aria-hidden="true"><span class="ord">${n + k + 1}</span><span class="nm">Place libre</span></button>`).join('');
+  return `<main class="page fit setup">
     ${topbar('Nouvelle partie')}
     <section class="section"><h2>Jeu</h2><div class="games">${types.map(([k, t, d]) =>
       `<button class="game-card ${isOn(k) ? 'on' : ''}" aria-pressed="${isOn(k)}" data-action="setup-type" data-type="${k}"><b>${t}</b><span>${d}</span></button>`).join('')}</div></section>
@@ -1555,7 +1646,15 @@ function gameClock(g, st) {
   const pad = `<div class="ck-pad" style="--c:${btns.length + 1}">${btns.map(([c, l]) => `<button class="k hit" data-action="dart" data-code="${c}">${l}</button>`).join('')}
     <button class="k miss" data-action="dart" data-code="M">Raté</button></div>
     <div class="acts cr-acts"><button class="k act" data-action="undo" ${g.darts.length ? '' : 'disabled'}>${icon('undo')} Annuler</button>${endTurnBtn()}</div>`;
-  return `<div class="g-body split"><div class="g-main"><div class="ck n${g.players.length}">${rows}</div>${turnPanel(g, st)}${statsPanel(g, st)}</div><div class="g-pad">${pad}</div></div>`;
+  return `<div class="g-body split"><div class="g-main"><div class="ck n${g.players.length}">${rows}</div>${turnPanel(g, st)}${statsPanel(g, st)}</div><div class="g-pad">${clockBoard(tg, o.zone)}${pad}</div></div>`;
+}
+// Cible de l'Horloge : la zone visée ressort, le reste est atténué. Simple repère (la saisie se fait
+// avec les boutons), affiché dans la place libre au-dessus des boutons et masqué s'il n'y a pas la place.
+function clockBoard(tg, zone) {
+  if (tg == null) return '';
+  const codes = tg === 25 ? (zone === 'double' ? ['D25'] : ['S25', 'D25'])
+    : zone === 'double' ? ['D' + tg] : zone === 'triple' ? ['T' + tg] : ['S' + tg, 'D' + tg, 'T' + tg];
+  return `<div class="ck-board" aria-hidden="true"><div class="dsq"><svg class="bsvg" viewBox="${BOARD_VIEW}">${boardShapes(false, { nums: true, hl: new Set(codes) })}</svg></div></div>`;
 }
 
 /* ---------- Stats de la partie en cours (grands écrans) ----------
